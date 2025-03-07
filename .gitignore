@@ -1,14 +1,14 @@
-# Ignorar carpetas y archivos del sistema
-.DS_Store
-Thumbs.db
+# Ignorar archivos del sistema
+*.log
+*.bak
+*.swp
+
+# Ignorar entornos virtuales
+venv/
+__pycache__/
+*.pyc
+
+# Ignorar archivos de configuración de editores
 .vscode/
 .idea/
-*.log
-*.pyc
-__pycache__/
-*.db
-*.sqlite3
-
-# Ignorar archivos específicos de Windows
-AppData/
-ntuser.dat*
+*.sublime-workspace
