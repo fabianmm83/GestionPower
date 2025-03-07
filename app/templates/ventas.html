@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Ventas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <!-- 🔥 Título estilizado -->
+        <h1 class="text-center mb-4">
+            <i class="fas fa-shopping-cart"></i> Registro de Ventas
+        </h1>
+        
+        <div class="card shadow-lg border-0">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover table-bordered">
+                        <thead class="table-dark text-center">
+                            <tr>
+                                <th>ID</th>
+                                <th>Producto</th>
+                                <th>Cantidad</th>
+                                <th>Fecha</th>
+                                <th>Total</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for venta in ventas %}
+                            <tr>
+                                <td class="text-center">{{ venta.id }}</td>
+                                <!-- Mostrar productos asociados a la venta -->
+                                <td>
+                                    {% for venta_producto in venta.productos %}
+                                        {{ venta_producto.producto.nombre }} ({{ venta_producto.cantidad }} unidades) <br>
+                                    {% endfor %}
+                                </td>
+                                <td class="text-center">{{ venta.cantidad }}</td>
+                                <td class="text-center">{{ venta.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td class="text-center">
+                                    {% if venta.total > 100 %}
+                                        <span class="badge bg-success">${{ venta.total | round(2) }}</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">${{ venta.total | round(2) }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <form method="POST" action="{{ url_for('routes.eliminar_venta', id=venta.id) }}" 
+                                          onsubmit="return confirm('¿Estás seguro de eliminar esta venta? Esta acción no se puede deshacer.');">
+                                        <button type="submit" class="btn btn-danger btn-sm">
+                                            <i class="fas fa-trash"></i> Eliminar
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🔥 Botón de regreso estilizado -->
+        <div class="text-center mt-4">
+            <a href="{{ url_for('routes.index') }}" class="btn btn-primary">
+                <i class="fas fa-home"></i> Volver al Inicio
+            </a>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

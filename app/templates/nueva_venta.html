@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Registrar Nueva Venta</h2>
+    <form method="POST">
+        <div class="mb-3">
+            <label for="productos" class="form-label">Seleccionar productos</label>
+            <div id="productos-list">
+                {% for producto in productos %}
+                    <div class="form-check">
+                        <!-- Aseguramos que cada producto tenga un id único -->
+                        <input class="form-check-input" type="checkbox" value="{{ producto.id }}" id="producto_{{ producto.id }}" name="productos">
+                        <label class="form-check-label" for="producto_{{ producto.id }}">
+                            {{ producto.nombre }} - ${{ producto.precio }}
+                        </label>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="cantidad" class="form-label">Cantidad de cada producto</label>
+            <input type="number" class="form-control" id="cantidad" name="cantidad" required>
+        </div>
+
+        <div class="mb-3">
+            <h4>Productos seleccionados</h4>
+            <ul id="productos-seleccionados" class="list-group">
+                <!-- Aquí se mostrarán los productos seleccionados -->
+            </ul>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Guardar Venta</button>
+        <a href="{{ url_for('routes.index') }}" class="btn btn-secondary">Cancelar</a>
+    </form>
+
+    <!-- Botón para acceder a las ventas registradas -->
+    <div class="mt-3">
+        <a href="{{ url_for('routes.listar_ventas') }}" class="btn btn-info">Ver Ventas Registradas</a>
+    </div>
+</div>
+
+<script>
+    // Función para manejar la selección de productos
+    const checkboxes = document.querySelectorAll('input[name="productos"]');
+    const productosSeleccionados = document.getElementById('productos-seleccionados');
+
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+            const productoId = checkbox.value;
+            const productoNombre = checkbox.nextElementSibling.innerText;
+
+            if (checkbox.checked) {
+                // Crear un elemento de lista para el producto seleccionado
+                const li = document.createElement('li');
+                li.classList.add('list-group-item');
+                li.innerText = productoNombre;
+                li.setAttribute('data-producto-id', productoId);
+                productosSeleccionados.appendChild(li);
+            } else {
+                // Eliminar el producto de la lista si se desmarca
+                const items = productosSeleccionados.querySelectorAll('li');
+                items.forEach(item => {
+                    if (item.getAttribute('data-producto-id') === productoId) {
+                        item.remove();
+                    }
+                });
+            }
+        });
+    });
+</script>
+
+{% endblock %}
