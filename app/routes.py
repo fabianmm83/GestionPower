@@ -3,8 +3,15 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from sqlalchemy import DateTime
 from app import db
 from app.models import Producto, Venta, VentaProducto
-from config import CATEGORIAS_PREDETERMINADAS
 from collections import defaultdict
+from config.config import Config  # Importa la clase Config
+
+
+
+# Usa Config.CATEGORIAS_PREDETERMINADAS donde sea necesario
+CATEGORIAS_PREDETERMINADAS = Config.CATEGORIAS_PREDETERMINADAS
+
+
 
 routes = Blueprint('routes', __name__)
 
@@ -17,14 +24,12 @@ def index():
 @routes.route('/producto/nuevo', methods=['GET', 'POST'])
 def nuevo_producto():
     if request.method == 'POST':
-        # Obtener los datos del formulario
         nombre = request.form['nombre']
         descripcion = request.form['descripcion']
         precio = float(request.form['precio'])
         cantidad = int(request.form['cantidad'])
         categoria = request.form['categoria']
 
-        # Crear el nuevo producto
         nuevo_producto = Producto(
             nombre=nombre,
             descripcion=descripcion,
@@ -35,12 +40,10 @@ def nuevo_producto():
         db.session.add(nuevo_producto)
         db.session.commit()
 
-        flash('Producto agregado correctamente.', 'success')  # Mensaje de éxito
-        return redirect(url_for('routes.index'))  # Redirigir al listado de productos
+        flash('Producto agregado correctamente.', 'success')
+        return redirect(url_for('routes.index'))
 
-    # Pasar las categorías predeterminadas a la plantilla
     return render_template('nuevo_producto.html', categorias=CATEGORIAS_PREDETERMINADAS)
-
 
 @routes.route('/producto/editar/<int:id>', methods=['GET', 'POST'])
 def editar_producto(id):

@@ -5,29 +5,32 @@ from datetime import datetime
 class Producto(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
-    descripcion = db.Column(db.String(200), nullable=False)
+    descripcion = db.Column(db.String(200))
     precio = db.Column(db.Float, nullable=False)
     cantidad = db.Column(db.Integer, nullable=False)
-    categoria = db.Column(db.String(100), nullable=False)
-    activo = db.Column(db.Boolean, default=True)
+    categoria = db.Column(db.String(50), nullable=False)
+    activo = db.Column(db.Boolean, default=True)  # Para productos activos/inactivos
+    fecha_registro = db.Column(db.DateTime, default=datetime.utcnow)  # Fecha de registro
 
-    # Relación con ventas a través de la tabla intermedia
-    ventas = db.relationship('VentaProducto', back_populates='producto')
+    # Relación con VentaProducto
+    ventas = db.relationship('VentaProducto', back_populates='producto', cascade="all, delete-orphan")
 
     def __repr__(self):
-        return f'<Producto {self.nombre}>'
+        return f"<Producto {self.nombre}>"
 
 # Modelo de Venta
-# En models.py
-
 class Venta(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     fecha = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     total = db.Column(db.Float, nullable=False)
 
-    # Relación con productos a través de la tabla intermedia
+    # Relación con VentaProducto
     productos = db.relationship('VentaProducto', back_populates='venta', cascade="all, delete-orphan")
 
+    def __repr__(self):
+        return f"<Venta {self.id}>"
+
+# Modelo de VentaProducto (tabla intermedia)
 class VentaProducto(db.Model):
     __tablename__ = 'venta_producto'
     venta_id = db.Column(db.Integer, db.ForeignKey('venta.id', ondelete="CASCADE"), primary_key=True)
@@ -38,7 +41,11 @@ class VentaProducto(db.Model):
     # Relaciones inversas
     venta = db.relationship('Venta', back_populates='productos')
     producto = db.relationship('Producto', back_populates='ventas')
-    
+
+    def __repr__(self):
+        return f"<VentaProducto {self.venta_id}-{self.producto_id}>"
+
+# Modelo de Categoría
 class Categoria(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False, unique=True)

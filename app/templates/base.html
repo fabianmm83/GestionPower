@@ -8,9 +8,14 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Estilos personalizados -->
     <style>
-        /* Fondo de la página */
+        /* Fondo de la página con el logo */
         body {
             background-color: #fff0f6; /* Rosa muy claro */
+            background-image: url("{{ url_for('static', filename='images/logo.png') }}");
+            background-size: 25%; /* Tamaño del logo */
+            background-position: center; /* Centrar el logo */
+            background-repeat: no-repeat; /* No repetir el logo */
+            background-attachment: fixed; /* Fondo fijo */
         }
 
         /* Barra de navegación */
@@ -26,7 +31,9 @@
 
         .navbar-brand img {
             height: 80px; /* Tamaño para pantallas grandes */
-            width: auto;
+            width: 80px; /* Hacer el logo circular */
+            border-radius: 50%; /* Forma circular */
+            object-fit: cover; /* Ajustar la imagen al círculo */
         }
 
         .nav-link {
@@ -41,6 +48,7 @@
         @media (max-width: 768px) {
             .navbar-brand img {
                 height: 50px; /* Tamaño más pequeño para móviles */
+                width: 50px; /* Mantener la forma circular */
             }
         }
 
@@ -51,30 +59,31 @@
             color: #333; /* Color de texto oscuro para contraste */
         }
 
-        /* Botones primarios */
+        /* Botones primarios (azul pastel) */
         .btn-primary {
-            background-color: #ff85a2; /* Rosa medio */
-            border-color: #ff85a2;
+            background-color: #a2d5f2; /* Azul pastel */
+            border-color: #a2d5f2;
+            color: #333; /* Texto oscuro para contraste */
         }
 
         .btn-primary:hover {
-            background-color: #ff1493; /* Rosa más oscuro al hacer hover */
-            border-color: #ff1493;
+            background-color: #85c3e0; /* Azul pastel más oscuro al hacer hover */
+            border-color: #85c3e0;
         }
 
-        /* Botones secundarios */
+        /* Botones secundarios (verde pastel) */
         .btn-secondary {
-            background-color: #ffccd5; /* Rosa claro */
-            border-color: #ffccd5;
+            background-color: #b2f2bb; /* Verde pastel */
+            border-color: #b2f2bb;
             color: #333; /* Texto oscuro para contraste */
         }
 
         .btn-secondary:hover {
-            background-color: #ff85a2; /* Rosa medio al hacer hover */
-            border-color: #ff85a2;
+            background-color: #95e0a2; /* Verde pastel más oscuro al hacer hover */
+            border-color: #95e0a2;
         }
 
-        /* Botones de información */
+        /* Botones de información (rosa pastel) */
         .btn-info {
             background-color: #ffccd5; /* Rosa claro */
             border-color: #ffccd5;
@@ -103,9 +112,14 @@
                         <a class="nav-link" href="{{ url_for('routes.index') }}">Inicio</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('routes.listar_ventas') }}">Ventas</a>
+                        <a class="nav-link" href="{{ url_for('routes.nuevo_producto') }}">Agregar Productos</a>
                     </li>
-                    <!-- Agrega más enlaces de navegación si es necesario -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('routes.listar_ventas') }}">Ventas Registradas</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('routes.nueva_venta') }}">Registrar Venta</a>
+                    </li>
                 </ul>
             </div>
         </div>

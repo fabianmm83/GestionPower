@@ -24,6 +24,12 @@
             <label for="categoria" class="form-label">Categoría</label>
             <input type="text" class="form-control" id="categoria" name="categoria" value="{{ producto.categoria }}">
         </div>
+        <div class="mb-3">
+            <label for="fecha_registro" class="form-label">Fecha de Registro</label>
+            <input type="text" class="form-control" id="fecha_registro" 
+                   value="{% if producto.fecha_registro %}{{ producto.fecha_registro.strftime('%Y-%m-%d %H:%M') }}{% else %}No tiene fecha{% endif %}" 
+                   readonly>
+        </div>
         <div class="d-grid gap-2 d-md-block">
             <button type="submit" class="btn btn-primary">Guardar Cambios</button>
             <a href="{{ url_for('routes.index') }}" class="btn btn-secondary">Cancelar</a>

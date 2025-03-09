@@ -26,6 +26,7 @@
                     <th>Precio</th>
                     <th>Cantidad</th>
                     <th>Categoría</th>
+                    <th>Fecha de Registro</th> <!-- Nueva columna -->
                     <th>Acciones</th>
                 </tr>
             </thead>
@@ -39,6 +40,13 @@
                             <td>${{ producto.precio }}</td>
                             <td>{{ producto.cantidad }}</td>
                             <td>{{ producto.categoria }}</td>
+                            <td>
+                                {% if producto.fecha_registro %}
+                                    {{ producto.fecha_registro.strftime('%Y-%m-%d %H:%M') }}
+                                {% else %}
+                                    No tiene fecha
+                                {% endif %}
+                            </td>
                             <td>
                                 <a href="{{ url_for('routes.editar_producto', id=producto.id) }}" class="btn btn-warning btn-sm">Editar</a>
                             </td>
