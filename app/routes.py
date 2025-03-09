@@ -98,12 +98,12 @@ def nueva_venta():
         try:
             productos_seleccionados = request.form.getlist('productos')  # IDs de productos seleccionados
             total_venta = 0
-            total_productos = 0
 
+            print("Datos del formulario:", request.form)  # Depuración
             print("Productos seleccionados:", productos_seleccionados)  # Depuración
 
-            # Crear una nueva venta
-            venta = Venta(total=total_venta, cantidad=total_productos)
+            # Crear una nueva venta (sin el campo 'cantidad')
+            venta = Venta(total=total_venta)  # Elimina 'cantidad=total_productos'
             db.session.add(venta)
 
             for producto_id in productos_seleccionados:
@@ -132,13 +132,11 @@ def nueva_venta():
                     # Descontar la cantidad del inventario
                     producto.cantidad -= cantidad
 
-                    # Actualizar el total de la venta y el número de productos vendidos
+                    # Actualizar el total de la venta
                     total_venta += producto.precio * cantidad
-                    total_productos += cantidad
 
-            # Actualizar el total de la venta y el número de productos vendidos
+            # Actualizar el total de la venta
             venta.total = total_venta
-            venta.cantidad = total_productos
             db.session.commit()
 
             flash("Venta registrada correctamente.", "success")
@@ -146,13 +144,13 @@ def nueva_venta():
 
         except Exception as e:
             db.session.rollback()  # Deshacer la transacción en caso de error
+            print(f"Error: {str(e)}")  # Depuración
             flash(f"Error al registrar la venta: {str(e)}", "danger")
             return redirect(url_for('routes.nueva_venta'))
 
     # Obtener los productos disponibles (activos)
     productos = Producto.query.filter_by(activo=True).all()
     return render_template('nueva_venta.html', productos=productos)
-
 @routes.route('/ventas', methods=['GET'])
 def listar_ventas():
     # Obtener todas las ventas desde la base de datos
