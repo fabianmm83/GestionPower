@@ -4,7 +4,7 @@ from sqlalchemy import DateTime
 from app import db
 from app.models import Producto, Venta, VentaProducto
 from collections import defaultdict
-from config.config import Config  # Importa la clase Config
+from config.config import Config  # type: ignore # Importa la clase Config
 from app.models import MovimientoInventario
 
 
@@ -103,57 +103,82 @@ def eliminar_producto(id):
         db.session.rollback()
         flash(f"Error al eliminar producto: {str(e)}", "danger")
         return redirect(url_for('routes.index'))
-
-# routes.py
+    
+    
 @routes.route('/venta/nueva', methods=['GET', 'POST'])
 def nueva_venta():
     if request.method == 'POST':
         productos_seleccionados = request.form.getlist('productos')
         total_venta = 0
+        productos_validos = []
 
-        venta = Venta(total=total_venta)
-        db.session.add(venta)
-
+        # Verificar el stock antes de procesar la venta
         for producto_id in productos_seleccionados:
-            producto = Producto.query.get(producto_id)
-            cantidad = int(request.form.get(f'cantidad_{producto_id}', 1))
-
-            if cantidad > producto.cantidad:
-                flash(f"No hay suficiente stock para {producto.nombre}. Stock disponible: {producto.cantidad}", "danger")
-                db.session.rollback()
+            producto = Producto.query.get(producto_id)  # Aquí se cierra correctamente el paréntesis
+            
+            if not producto:
+                flash(f"El producto con ID {producto_id} no existe.", "danger")
                 return redirect(url_for('routes.nueva_venta'))
 
-            venta_producto = VentaProducto(
-                venta_id=venta.id,
-                producto_id=producto.id,
-                cantidad=cantidad,
-                precio=producto.precio
-            )
-            db.session.add(venta_producto)
+            cantidad = int(request.form.get(f'cantidad_{producto_id}', 1))
 
-            # Actualizar el stock del producto
-            producto.cantidad -= cantidad
+            if cantidad > 0:  # Solo considerar productos con cantidad válida
+                if cantidad > producto.cantidad:
+                    flash(f"No hay suficiente stock para {producto.nombre}. Stock disponible: {producto.cantidad}", "danger")
+                    return redirect(url_for('routes.nueva_venta'))
+                
+                productos_validos.append((producto, cantidad))
 
-            # Registrar movimiento de salida
-            movimiento = MovimientoInventario(
-                producto_id=producto.id,
-                tipo='salida',
-                cantidad=cantidad
-            )
-            db.session.add(movimiento)
+        # Si hay productos válidos, proceder con la venta
+        if productos_validos:
+            venta = Venta(total=total_venta)
+            db.session.add(venta)
 
-            total_venta += producto.precio * cantidad
+            for producto, cantidad in productos_validos:
+                # Crear la relación VentaProducto
+                venta_producto = VentaProducto(
+                    venta_id=venta.id,
+                    producto_id=producto.id,
+                    cantidad=cantidad,
+                    precio=producto.precio
+                )
+                db.session.add(venta_producto)
 
-        venta.total = total_venta
-        db.session.commit()
+                # Actualizar el stock del producto
+                producto.cantidad -= cantidad
 
-        flash("Venta registrada correctamente.", "success")
-        return redirect(url_for('routes.index'))
+                # Registrar movimiento de salida
+                movimiento = MovimientoInventario(
+                    producto_id=producto.id,
+                    tipo='salida',
+                    cantidad=cantidad
+                )
+                db.session.add(movimiento)
 
+                # Actualizar el total de la venta
+                total_venta += producto.precio * cantidad
+
+            venta.total = total_venta
+            db.session.commit()
+
+            flash("Venta registrada correctamente.", "success")
+            return redirect(url_for('routes.index'))
+
+        flash("No se seleccionaron productos válidos para la venta.", "warning")
+        return redirect(url_for('routes.nueva_venta'))
+
+    # Obtener los productos disponibles (activos)
     productos = Producto.query.filter_by(activo=True).all()
-    return render_template('nueva_venta.html', productos=productos)
-
-
+    return render_template('nueva_venta.html', productos=productos)   
+   
+    
+    
+    
+    
+    
+    
+    
+    
 @routes.route('/ventas', methods=['GET'])
 def listar_ventas():
     # Obtener todas las ventas desde la base de datos
