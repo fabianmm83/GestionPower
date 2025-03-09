@@ -1,22 +1,25 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from config import config  # Importa la configuración
 
 db = SQLAlchemy()
 
 def create_app():
     app = Flask(__name__)
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tienda.db'
-    app.config['SECRET_KEY'] = 'tu_clave_secreta_super_segura'
-    app.config['DEBUG'] = True  # Activa el modo debug
     
+    # Carga la configuración según el entorno
+    app.config.from_object(config)
+
+    # Inicializa la base de datos y Flask-Migrate
     db.init_app(app)
     migrate = Migrate(app, db)
 
+    # Registra el Blueprint de rutas
     from app.routes import routes
-    app.register_blueprint(routes)  # Se registra el Blueprint correctamente
+    app.register_blueprint(routes)
 
-    
+    # Crea las tablas en la base de datos (si no existen)
     with app.app_context():
         db.create_all()
 
