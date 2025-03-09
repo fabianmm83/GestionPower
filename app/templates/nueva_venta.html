@@ -9,7 +9,7 @@
             <label class="form-label">Seleccione los productos:</label>
             <div class="list-group">
                 {% for producto in productos %}
-                    {% set color = "bg-success text-white" if producto.cantidad > 10 else "bg-warning text-dark" if producto.cantidad > 5 else "bg-danger text-white" %}
+                    {% set color = "bg-success text-white" if producto.cantidad >= 4 else "bg-warning text-dark" if producto.cantidad > 1 else "bg-danger text-white" %}
                     <div class="list-group-item {{ color }}">
                         <div class="form-check">
                             <input class="form-check-input producto-checkbox" type="checkbox" name="productos" value="{{ producto.id }}" id="producto{{ producto.id }}" data-precio="{{ producto.precio }}" data-nombre="{{ producto.nombre }}">

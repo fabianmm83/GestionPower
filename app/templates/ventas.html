@@ -144,7 +144,13 @@
                                             {{ venta_producto.producto.nombre }} ({{ venta_producto.cantidad }} unidades) <br>
                                         {% endfor %}
                                     </td>
-                                    <td class="text-center">{{ venta.cantidad }}</td>
+                                    <td class="text-center">
+                                        {% set cantidad_total = 0 %}
+                                        {% for venta_producto in venta.productos %}
+                                            {% set cantidad_total = cantidad_total + venta_producto.cantidad %}
+                                        {% endfor %}
+                                        {{ cantidad_total }}
+                                    </td>
                                     <td class="text-center">{{ venta.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
                                     <td class="text-center">
                                         <span class="badge bg-success">${{ venta.total | round(2) }}</span>
