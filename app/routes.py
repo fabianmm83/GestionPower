@@ -5,7 +5,7 @@ from app import db
 from app.models import Producto, Venta, VentaProducto
 from collections import defaultdict
 from config.config import Config  # Importa la clase Config
-
+from app.models import MovimientoInventario
 
 
 # Usa Config.CATEGORIAS_PREDETERMINADAS donde sea necesario
@@ -38,6 +38,15 @@ def nuevo_producto():
             categoria=categoria
         )
         db.session.add(nuevo_producto)
+        db.session.commit()
+
+        # Registrar movimiento de entrada
+        movimiento = MovimientoInventario(
+            producto_id=nuevo_producto.id,
+            tipo='entrada',
+            cantidad=cantidad
+        )
+        db.session.add(movimiento)
         db.session.commit()
 
         flash('Producto agregado correctamente.', 'success')
@@ -95,65 +104,56 @@ def eliminar_producto(id):
         flash(f"Error al eliminar producto: {str(e)}", "danger")
         return redirect(url_for('routes.index'))
 
+# routes.py
 @routes.route('/venta/nueva', methods=['GET', 'POST'])
 def nueva_venta():
     if request.method == 'POST':
-        try:
-            productos_seleccionados = request.form.getlist('productos')  # IDs de productos seleccionados
-            total_venta = 0
+        productos_seleccionados = request.form.getlist('productos')
+        total_venta = 0
 
-            print("Datos del formulario:", request.form)  # Depuración
-            print("Productos seleccionados:", productos_seleccionados)  # Depuración
+        venta = Venta(total=total_venta)
+        db.session.add(venta)
 
-            # Crear una nueva venta (sin el campo 'cantidad')
-            venta = Venta(total=total_venta)  # Elimina 'cantidad=total_productos'
-            db.session.add(venta)
+        for producto_id in productos_seleccionados:
+            producto = Producto.query.get(producto_id)
+            cantidad = int(request.form.get(f'cantidad_{producto_id}', 1))
 
-            for producto_id in productos_seleccionados:
-                producto = Producto.query.get(producto_id)
-                if producto:
-                    # Obtener la cantidad para este producto
-                    cantidad = int(request.form.get(f'cantidad_{producto_id}', 1))  # Valor predeterminado: 1
+            if cantidad > producto.cantidad:
+                flash(f"No hay suficiente stock para {producto.nombre}. Stock disponible: {producto.cantidad}", "danger")
+                db.session.rollback()
+                return redirect(url_for('routes.nueva_venta'))
 
-                    print(f"Producto ID: {producto_id}, Cantidad: {cantidad}")  # Depuración
+            venta_producto = VentaProducto(
+                venta_id=venta.id,
+                producto_id=producto.id,
+                cantidad=cantidad,
+                precio=producto.precio
+            )
+            db.session.add(venta_producto)
 
-                    # Validar que la cantidad no supere el stock disponible
-                    if cantidad > producto.cantidad:
-                        flash(f"No hay suficiente stock para {producto.nombre}. Stock disponible: {producto.cantidad}", "danger")
-                        db.session.rollback()  # Deshacer la transacción
-                        return redirect(url_for('routes.nueva_venta'))
+            # Actualizar el stock del producto
+            producto.cantidad -= cantidad
 
-                    # Crear la relación VentaProducto
-                    venta_producto = VentaProducto(
-                        venta_id=venta.id,
-                        producto_id=producto.id,
-                        cantidad=cantidad,
-                        precio=producto.precio
-                    )
-                    db.session.add(venta_producto)
+            # Registrar movimiento de salida
+            movimiento = MovimientoInventario(
+                producto_id=producto.id,
+                tipo='salida',
+                cantidad=cantidad
+            )
+            db.session.add(movimiento)
 
-                    # Descontar la cantidad del inventario
-                    producto.cantidad -= cantidad
+            total_venta += producto.precio * cantidad
 
-                    # Actualizar el total de la venta
-                    total_venta += producto.precio * cantidad
+        venta.total = total_venta
+        db.session.commit()
 
-            # Actualizar el total de la venta
-            venta.total = total_venta
-            db.session.commit()
+        flash("Venta registrada correctamente.", "success")
+        return redirect(url_for('routes.index'))
 
-            flash("Venta registrada correctamente.", "success")
-            return redirect(url_for('routes.index'))
-
-        except Exception as e:
-            db.session.rollback()  # Deshacer la transacción en caso de error
-            print(f"Error: {str(e)}")  # Depuración
-            flash(f"Error al registrar la venta: {str(e)}", "danger")
-            return redirect(url_for('routes.nueva_venta'))
-
-    # Obtener los productos disponibles (activos)
     productos = Producto.query.filter_by(activo=True).all()
     return render_template('nueva_venta.html', productos=productos)
+
+
 @routes.route('/ventas', methods=['GET'])
 def listar_ventas():
     # Obtener todas las ventas desde la base de datos
@@ -181,6 +181,12 @@ def listar_ventas():
         ventas_por_mes=ventas_por_mes
     )
 
+
+# routes.py
+@routes.route('/movimientos')
+def listar_movimientos():
+    movimientos = MovimientoInventario.query.order_by(MovimientoInventario.fecha.desc()).all()
+    return render_template('movimientos.html', movimientos=movimientos)
 
 
 
