@@ -24,8 +24,10 @@
             <label for="categoria" class="form-label">Categoría</label>
             <input type="text" class="form-control" id="categoria" name="categoria" value="{{ producto.categoria }}">
         </div>
-        <button type="submit" class="btn btn-primary">Guardar Cambios</button>
-        <a href="{{ url_for('routes.index') }}" class="btn btn-secondary">Cancelar</a>
+        <div class="d-grid gap-2 d-md-block">
+            <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+            <a href="{{ url_for('routes.index') }}" class="btn btn-secondary">Cancelar</a>
+        </div>
     </form>
 </div>
 {% endblock %}

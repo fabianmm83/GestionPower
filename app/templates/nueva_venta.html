@@ -2,64 +2,107 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h2>Registrar Nueva Venta</h2>
-    <form method="POST">
+    <h2 class="text-center mb-4">Registrar Nueva Venta</h2>
+    <form method="POST" onsubmit="return validarCantidades()">
         <div class="mb-3">
             <label for="productos" class="form-label">Seleccionar productos</label>
             <div id="productos-list">
                 {% for producto in productos %}
-                    <div class="form-check">
-                        <!-- Aseguramos que cada producto tenga un id único -->
+                    <div class="form-check mb-3">
                         <input class="form-check-input" type="checkbox" value="{{ producto.id }}" id="producto_{{ producto.id }}" name="productos">
                         <label class="form-check-label" for="producto_{{ producto.id }}">
-                            {{ producto.nombre }} - ${{ producto.precio }}
+                            {{ producto.nombre }} - ${{ producto.precio }} (Stock: {{ producto.cantidad }})
+                            <br>
+                            <small class="text-muted">{{ producto.descripcion }}</small>
                         </label>
+                        <!-- Campo de cantidad con un ancho reducido -->
+                        <input type="number" class="form-control cantidad-input mt-2" id="cantidad_{{ producto.id }}" name="cantidad_{{ producto.id }}" min="1" value="1" max="{{ producto.cantidad }}" style="width: 80px;">
                     </div>
                 {% endfor %}
             </div>
         </div>
 
         <div class="mb-3">
-            <label for="cantidad" class="form-label">Cantidad de cada producto</label>
-            <input type="number" class="form-control" id="cantidad" name="cantidad" required>
-        </div>
-
-        <div class="mb-3">
             <h4>Productos seleccionados</h4>
             <ul id="productos-seleccionados" class="list-group">
-                <!-- Aquí se mostrarán los productos seleccionados -->
+                <!-- Aquí se mostrarán los productos seleccionados con su cantidad -->
             </ul>
+            <!-- Resumen de la venta -->
+            <div class="mt-3">
+                <p><strong>Total de productos seleccionados:</strong> <span id="total-productos">0</span></p>
+                <p><strong>Total de la venta:</strong> $<span id="total-venta">0.00</span></p>
+            </div>
         </div>
 
-        <button type="submit" class="btn btn-primary">Guardar Venta</button>
-        <a href="{{ url_for('routes.index') }}" class="btn btn-secondary">Cancelar</a>
+        <div class="d-flex gap-2 justify-content-center">
+            <button type="submit" class="btn btn-primary">Guardar Venta</button>
+            <a href="{{ url_for('routes.index') }}" class="btn btn-secondary">Cancelar</a>
+        </div>
     </form>
 
-    <!-- Botón para acceder a las ventas registradas -->
-    <div class="mt-3">
+    <div class="mt-3 text-center">
         <a href="{{ url_for('routes.listar_ventas') }}" class="btn btn-info">Ver Ventas Registradas</a>
     </div>
 </div>
 
 <script>
-    // Función para manejar la selección de productos
     const checkboxes = document.querySelectorAll('input[name="productos"]');
     const productosSeleccionados = document.getElementById('productos-seleccionados');
+    const totalProductos = document.getElementById('total-productos');
+    const totalVenta = document.getElementById('total-venta');
+
+    function actualizarResumen() {
+        let totalProductosSeleccionados = 0;
+        let totalPagar = 0;
+
+        checkboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+                const productoId = checkbox.value;
+                const cantidadInput = document.querySelector(`input[name="cantidad_${productoId}"]`);
+                const precio = parseFloat(checkbox.nextElementSibling.innerText.match(/\$\d+/)[0].replace('$', ''));
+                const cantidad = parseInt(cantidadInput.value);
+
+                totalProductosSeleccionados += cantidad;
+                totalPagar += precio * cantidad;
+            }
+        });
+
+        totalProductos.textContent = totalProductosSeleccionados;
+        totalVenta.textContent = totalPagar.toFixed(2);
+    }
 
     checkboxes.forEach(checkbox => {
         checkbox.addEventListener('change', () => {
             const productoId = checkbox.value;
-            const productoNombre = checkbox.nextElementSibling.innerText;
+            const productoNombre = checkbox.nextElementSibling.innerText.split('\n')[0]; // Solo el nombre
+            const descripcion = checkbox.nextElementSibling.querySelector('small').innerText; // Descripción
+            const cantidadInput = checkbox.parentElement.querySelector('.cantidad-input');
 
             if (checkbox.checked) {
-                // Crear un elemento de lista para el producto seleccionado
+                cantidadInput.style.display = 'inline-block'; // Mostrar como bloque en línea
+
                 const li = document.createElement('li');
-                li.classList.add('list-group-item');
-                li.innerText = productoNombre;
+                li.classList.add('list-group-item', 'd-flex', 'justify-content-between', 'align-items-center');
+                li.innerHTML = `
+                    <div>
+                        <span>${productoNombre}</span>
+                        <br>
+                        <small class="text-muted">${descripcion}</small>
+                    </div>
+                    <span class="badge bg-primary rounded-pill" id="cantidad-seleccionada-${productoId}">Cantidad: ${cantidadInput.value}</span>
+                `;
                 li.setAttribute('data-producto-id', productoId);
                 productosSeleccionados.appendChild(li);
+
+                // Agregar evento input para actualizar la cantidad en tiempo real
+                cantidadInput.addEventListener('input', () => {
+                    const cantidadSeleccionada = document.getElementById(`cantidad-seleccionada-${productoId}`);
+                    cantidadSeleccionada.textContent = `Cantidad: ${cantidadInput.value}`;
+                    actualizarResumen(); // Actualizar el resumen
+                });
             } else {
-                // Eliminar el producto de la lista si se desmarca
+                cantidadInput.style.display = 'none';
+
                 const items = productosSeleccionados.querySelectorAll('li');
                 items.forEach(item => {
                     if (item.getAttribute('data-producto-id') === productoId) {
@@ -67,8 +110,28 @@
                     }
                 });
             }
+
+            actualizarResumen(); // Actualizar el resumen
         });
     });
+
+    function validarCantidades() {
+        let valido = true;
+        const productosSeleccionados = document.querySelectorAll('input[name="productos"]:checked');
+
+        productosSeleccionados.forEach(checkbox => {
+            const productoId = checkbox.value;
+            const cantidadInput = document.querySelector(`input[name="cantidad_${productoId}"]`);
+            const stockDisponible = parseInt(cantidadInput.max);
+
+            if (parseInt(cantidadInput.value) > stockDisponible) {
+                alert(`No hay suficiente stock para "${checkbox.nextElementSibling.innerText.split('\n')[0]}". Stock disponible: ${stockDisponible}`);
+                valido = false;
+            }
+        });
+
+        return valido;
+    }
 </script>
 
 {% endblock %}

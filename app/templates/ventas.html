@@ -6,19 +6,124 @@
     <title>Registro de Ventas</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Estilos personalizados */
+        .card {
+            background-color: #fff0f5; /* Fondo rosado pastel */
+            border: 1px solid #ff69b4; /* Borde rosado fuerte */
+        }
+
+        .table thead th {
+            background-color: #ff69b4; /* Encabezado de tabla rosado */
+            color: white; /* Texto blanco */
+        }
+
+        .table-striped tbody tr:nth-of-type(odd) {
+            background-color: #fff0f5; /* Fondo rosado pastel para filas impares */
+        }
+
+        .table-striped tbody tr:nth-of-type(even) {
+            background-color: #ffffff; /* Fondo blanco para filas pares */
+        }
+
+        .badge-success {
+            background-color: #28a745; /* Verde para totales mayores a 100 */
+        }
+
+        .badge-warning {
+            background-color: #ffc107; /* Amarillo para totales menores o iguales a 100 */
+        }
+
+        .btn-primary {
+            background-color: #ff69b4; /* Botón rosado fuerte */
+            border-color: #ff69b4;
+        }
+
+        .btn-primary:hover {
+            background-color: #ff1493; /* Rosa más oscuro al hacer hover */
+            border-color: #ff1493;
+        }
+
+        .btn-danger {
+            background-color: #dc3545; /* Rojo para el botón de eliminar */
+            border-color: #dc3545;
+        }
+
+        .btn-danger:hover {
+            background-color: #c82333; /* Rojo más oscuro al hacer hover */
+            border-color: #c82333;
+        }
+
+        .carousel-item {
+            background-color: #fff0f5; /* Fondo rosado pastel para el carrusel */
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .carousel-control-prev-icon,
+        .carousel-control-next-icon {
+            background-color: #ff69b4; /* Flechas del carrusel rosadas */
+            border-radius: 50%;
+            padding: 10px;
+        }
+    </style>
 </head>
 <body class="bg-light">
     <div class="container mt-5">
-        <!-- 🔥 Título estilizado -->
+        <!-- Título estilizado -->
         <h1 class="text-center mb-4">
             <i class="fas fa-shopping-cart"></i> Registro de Ventas
         </h1>
         
+        <!-- Resumen de ventas -->
+        <div class="card shadow-lg border-0 mb-4">
+            <div class="card-body">
+                <h4 class="card-title">Resumen de Ventas</h4>
+                <p class="card-text">
+                    <strong>Total de ventas registradas:</strong> {{ ventas | length }} <br>
+                    <strong>Mayor venta:</strong> ${{ mayor_venta | round(2) }} <br>
+                    <strong>Pago promedio:</strong> ${{ pago_promedio | round(2) }}
+                </p>
+            </div>
+        </div>
+
+        <!-- Carrusel de ventas mensuales -->
+        <div class="card shadow-lg border-0 mb-4">
+            <div class="card-body">
+                <h4 class="card-title">Ventas Mensuales</h4>
+                {% if ventas_por_mes %}
+                    <div id="carouselVentas" class="carousel slide" data-bs-ride="carousel">
+                        <div class="carousel-inner">
+                            {% for mes, datos in ventas_por_mes.items() %}
+                            <div class="carousel-item {% if loop.first %}active{% endif %}">
+                                <h5>{{ mes }}</h5>
+                                <p><strong>Total de ventas:</strong> {{ datos.total_ventas }}</p>
+                                <p><strong>Total recaudado:</strong> ${{ datos.total_recaudado | round(2) }}</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <button class="carousel-control-prev" type="button" data-bs-target="#carouselVentas" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">Anterior</span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#carouselVentas" data-bs-slide="next">
+                            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                            <span class="visually-hidden">Siguiente</span>
+                        </button>
+                    </div>
+                {% else %}
+                    <p class="text-muted text-center">No hay ventas registradas.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Tabla de ventas -->
         <div class="card shadow-lg border-0">
             <div class="card-body">
                 <div class="table-responsive">
                     <table class="table table-striped table-hover table-bordered">
-                        <thead class="table-dark text-center">
+                        <thead class="text-center">
                             <tr>
                                 <th>ID</th>
                                 <th>Producto</th>
@@ -29,41 +134,43 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for venta in ventas %}
-                            <tr>
-                                <td class="text-center">{{ venta.id }}</td>
-                                <!-- Mostrar productos asociados a la venta -->
-                                <td>
-                                    {% for venta_producto in venta.productos %}
-                                        {{ venta_producto.producto.nombre }} ({{ venta_producto.cantidad }} unidades) <br>
-                                    {% endfor %}
-                                </td>
-                                <td class="text-center">{{ venta.cantidad }}</td>
-                                <td class="text-center">{{ venta.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
-                                <td class="text-center">
-                                    {% if venta.total > 100 %}
+                            {% if ventas %}
+                                {% for venta in ventas %}
+                                <tr>
+                                    <td class="text-center">{{ venta.id }}</td>
+                                    <!-- Mostrar productos asociados a la venta -->
+                                    <td>
+                                        {% for venta_producto in venta.productos %}
+                                            {{ venta_producto.producto.nombre }} ({{ venta_producto.cantidad }} unidades) <br>
+                                        {% endfor %}
+                                    </td>
+                                    <td class="text-center">{{ venta.cantidad }}</td>
+                                    <td class="text-center">{{ venta.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                                    <td class="text-center">
                                         <span class="badge bg-success">${{ venta.total | round(2) }}</span>
-                                    {% else %}
-                                        <span class="badge bg-warning">${{ venta.total | round(2) }}</span>
-                                    {% endif %}
-                                </td>
-                                <td class="text-center">
-                                    <form method="POST" action="{{ url_for('routes.eliminar_venta', id=venta.id) }}" 
-                                          onsubmit="return confirm('¿Estás seguro de eliminar esta venta? Esta acción no se puede deshacer.');">
-                                        <button type="submit" class="btn btn-danger btn-sm">
-                                            <i class="fas fa-trash"></i> Eliminar
-                                        </button>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% endfor %}
+                                    </td>
+                                    <td class="text-center">
+                                        <form method="POST" action="{{ url_for('routes.eliminar_venta', id=venta.id) }}" 
+                                              onsubmit="return confirm('¿Estás seguro de eliminar esta venta? Esta acción no se puede deshacer.');">
+                                            <button type="submit" class="btn btn-danger btn-sm">
+                                                <i class="fas fa-trash"></i> Eliminar
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted">No hay ventas registradas.</td>
+                                </tr>
+                            {% endif %}
                         </tbody>
                     </table>
                 </div>
             </div>
         </div>
 
-        <!-- 🔥 Botón de regreso estilizado -->
+        <!-- Botón de regreso estilizado -->
         <div class="text-center mt-4">
             <a href="{{ url_for('routes.index') }}" class="btn btn-primary">
                 <i class="fas fa-home"></i> Volver al Inicio

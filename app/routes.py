@@ -3,6 +3,8 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from sqlalchemy import DateTime
 from app import db
 from app.models import Producto, Venta, VentaProducto
+from config import CATEGORIAS_PREDETERMINADAS
+from collections import defaultdict
 
 routes = Blueprint('routes', __name__)
 
@@ -12,14 +14,10 @@ def index():
     return render_template('index.html', productos=productos)
 
 ##agregar producto nuevo
-
 @routes.route('/producto/nuevo', methods=['GET', 'POST'])
 def nuevo_producto():
-    # Obtener las categorías únicas existentes en la base de datos
-    categorias = db.session.query(Producto.categoria).distinct().all()
-    categorias = [categoria[0] for categoria in categorias]  # Convertir a lista de strings
-    
     if request.method == 'POST':
+        # Obtener los datos del formulario
         nombre = request.form['nombre']
         descripcion = request.form['descripcion']
         precio = float(request.form['precio'])
@@ -37,9 +35,11 @@ def nuevo_producto():
         db.session.add(nuevo_producto)
         db.session.commit()
 
+        flash('Producto agregado correctamente.', 'success')  # Mensaje de éxito
         return redirect(url_for('routes.index'))  # Redirigir al listado de productos
 
-    return render_template('nuevo_producto.html', categorias=categorias)  # Pasar las categorías a la plantilla
+    # Pasar las categorías predeterminadas a la plantilla
+    return render_template('nuevo_producto.html', categorias=CATEGORIAS_PREDETERMINADAS)
 
 
 @routes.route('/producto/editar/<int:id>', methods=['GET', 'POST'])
@@ -50,120 +50,170 @@ def editar_producto(id):
         producto.descripcion = request.form['descripcion']
         producto.precio = float(request.form['precio'])
         producto.cantidad = int(request.form['cantidad'])
-        producto.categoria = request.form['categoria']
+        categoria = request.form['categoria']
 
+        # Validar que la categoría seleccionada esté en la lista de categorías predeterminadas
+        if categoria not in CATEGORIAS_PREDETERMINADAS:
+            flash("Categoría no válida.", "danger")
+            return redirect(url_for('routes.editar_producto', id=id))
+
+        producto.categoria = categoria
         db.session.commit()
+
+        flash("Producto actualizado correctamente.", "success")
         return redirect(url_for('routes.index'))
 
-    return render_template('editar_producto.html', producto=producto)
-
+    # Pasar las categorías predeterminadas a la plantilla
+    return render_template('editar_producto.html', producto=producto, categorias=CATEGORIAS_PREDETERMINADAS)
 
 ## producto eliminado ruta 
 @routes.route('/producto/eliminar/<int:id>', methods=['POST'])
 def eliminar_producto(id):
-    producto = Producto.query.get_or_404(id)
+    try:
+        producto = Producto.query.get_or_404(id)
 
-    # Verifica si existen ventas asociadas al producto
-    ventas = Venta.query.filter_by(producto_id=id).all()
-    if ventas:
-        flash("No se puede eliminar el producto porque tiene ventas asociadas.", "danger")
+        # Verifica si existen registros en la tabla intermedia de ventas asociadas al producto
+        ventas_asociadas = VentaProducto.query.filter_by(producto_id=id).first()
+        if ventas_asociadas:
+            flash("No se puede eliminar el producto porque tiene ventas asociadas.", "danger")
+            print("NO SE PUEDE ELIMINAR PORQUE TIENE VENTAS ASOCIADAS") 
+            return redirect(url_for('routes.index'))
+
+        # Si no hay ventas asociadas, marca el producto como inactivo
+        producto.activo = False
+        print("SE ELIMINÓ SIN PROBLEMA") 
+        db.session.commit()
+
+        flash("Producto marcado como inactivo.", "success")
         return redirect(url_for('routes.index'))
 
-    # Marca el producto como inactivo
-    producto.activo = False
-    db.session.commit()
-    flash("Producto marcado como inactivo.", "success")
-    return redirect(url_for('routes.index'))
-
-
-
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error al eliminar producto: {str(e)}", "danger")
+        return redirect(url_for('routes.index'))
 
 @routes.route('/venta/nueva', methods=['GET', 'POST'])
 def nueva_venta():
     if request.method == 'POST':
-        productos_seleccionados = request.form.getlist('productos')  # Listado de IDs de productos seleccionados
-        cantidades = request.form.getlist('cantidad')  # Cantidades correspondientes a cada producto
-        total_venta = 0
+        try:
+            productos_seleccionados = request.form.getlist('productos')  # IDs de productos seleccionados
+            total_venta = 0
+            total_productos = 0
 
-        # Crear una nueva venta
-        venta = Venta(total=total_venta)
-        db.session.add(venta)
+            print("Productos seleccionados:", productos_seleccionados)  # Depuración
 
-        for producto_id, cantidad in zip(productos_seleccionados, cantidades):
-            producto = Producto.query.get(producto_id)
-            if producto and producto.cantidad >= int(cantidad):  # Asegúrate de que haya stock
-                venta_producto = VentaProducto(
-                    venta_id=venta.id,
-                    producto_id=producto.id,
-                    cantidad=cantidad,
-                    precio=producto.precio
-                )
-                db.session.add(venta_producto)
+            # Crear una nueva venta
+            venta = Venta(total=total_venta, cantidad=total_productos)
+            db.session.add(venta)
 
-                # Descontar la cantidad del inventario
-                producto.cantidad -= int(cantidad)
-                total_venta += producto.precio * int(cantidad)
+            for producto_id in productos_seleccionados:
+                producto = Producto.query.get(producto_id)
+                if producto:
+                    # Obtener la cantidad para este producto
+                    cantidad = int(request.form.get(f'cantidad_{producto_id}', 1))  # Valor predeterminado: 1
 
-        # Actualizar el total de la venta
-        venta.total = total_venta
-        db.session.commit()
+                    print(f"Producto ID: {producto_id}, Cantidad: {cantidad}")  # Depuración
 
-        return redirect(url_for('routes.index'))
+                    # Validar que la cantidad no supere el stock disponible
+                    if cantidad > producto.cantidad:
+                        flash(f"No hay suficiente stock para {producto.nombre}. Stock disponible: {producto.cantidad}", "danger")
+                        db.session.rollback()  # Deshacer la transacción
+                        return redirect(url_for('routes.nueva_venta'))
 
-    productos = Producto.query.filter_by(activo=True).all()  # Obtener los productos disponibles
+                    # Crear la relación VentaProducto
+                    venta_producto = VentaProducto(
+                        venta_id=venta.id,
+                        producto_id=producto.id,
+                        cantidad=cantidad,
+                        precio=producto.precio
+                    )
+                    db.session.add(venta_producto)
+
+                    # Descontar la cantidad del inventario
+                    producto.cantidad -= cantidad
+
+                    # Actualizar el total de la venta y el número de productos vendidos
+                    total_venta += producto.precio * cantidad
+                    total_productos += cantidad
+
+            # Actualizar el total de la venta y el número de productos vendidos
+            venta.total = total_venta
+            venta.cantidad = total_productos
+            db.session.commit()
+
+            flash("Venta registrada correctamente.", "success")
+            return redirect(url_for('routes.index'))
+
+        except Exception as e:
+            db.session.rollback()  # Deshacer la transacción en caso de error
+            flash(f"Error al registrar la venta: {str(e)}", "danger")
+            return redirect(url_for('routes.nueva_venta'))
+
+    # Obtener los productos disponibles (activos)
+    productos = Producto.query.filter_by(activo=True).all()
     return render_template('nueva_venta.html', productos=productos)
-
-
-
-@routes.route('/registro_venta', methods=['POST'])
-def registrar_venta():
-    data = request.json
-
-    # Crear una nueva venta
-    nueva_venta = Venta(total=0.0)
-
-    # Agregar productos a la venta
-    for item in data['productos']:
-        producto_id = item['producto_id']
-        cantidad = item['cantidad']
-
-        # Obtener el producto de la base de datos
-        producto = db.session.get(Producto, producto_id)
-        if not producto:
-            return jsonify({"error": f"Producto con ID {producto_id} no encontrado"}), 404
-
-        # Agregar el producto a la venta
-        nueva_venta.agregar_producto(producto, cantidad)
-
-    # Guardar la venta en la base de datos
-    db.session.add(nueva_venta)
-    db.session.commit()
-
-    return jsonify({"mensaje": "Venta registrada correctamente", "venta_id": nueva_venta.id}), 201
-
-
-
-
 
 @routes.route('/ventas', methods=['GET'])
 def listar_ventas():
-    ventas = Venta.query.all()  # Obtener todas las ventas
-    return render_template('ventas.html', ventas=ventas)
+    # Obtener todas las ventas desde la base de datos
+    ventas = Venta.query.all()
+
+    # Calcular la mayor venta
+    mayor_venta = max([venta.total for venta in ventas], default=0)
+
+    # Calcular el pago promedio
+    pago_promedio = sum([venta.total for venta in ventas]) / len(ventas) if ventas else 0
+
+    # Agrupar ventas por mes
+    ventas_por_mes = defaultdict(lambda: {"total_ventas": 0, "total_recaudado": 0})
+    for venta in ventas:
+        mes = venta.fecha.strftime("%B %Y")  # Formato: "Mes Año"
+        ventas_por_mes[mes]["total_ventas"] += 1
+        ventas_por_mes[mes]["total_recaudado"] += venta.total
+
+    # Pasar los datos a la plantilla
+    return render_template(
+        "ventas.html",  # Nombre de tu plantilla HTML
+        ventas=ventas,
+        mayor_venta=mayor_venta,
+        pago_promedio=pago_promedio,
+        ventas_por_mes=ventas_por_mes
+    )
+
 
 
 
 ##RUTA PARA ELIMINAR VENTAS REGISTRADAS
 @routes.route('/venta/eliminar/<int:id>', methods=['POST'])
 def eliminar_venta(id):
-    venta = Venta.query.get_or_404(id)  # Buscar la venta
+    try:
+        print("Iniciando eliminación de venta...")  # Depuración
+        venta = Venta.query.get_or_404(id)  # Buscar la venta
+        print(f"Venta encontrada: {venta.id}")  # Depuración
 
-    # Recuperar el producto relacionado y devolver el stock
-    producto = Producto.query.get(venta.producto_id)
-    if producto:
-        producto.cantidad += venta.cantidad  # Devolver la cantidad al stock
+        # Recorrer todos los productos asociados a la venta
+        for venta_producto in venta.productos:
+            producto = Producto.query.get(venta_producto.producto_id)
+            if producto:
+                print(f"Devolviendo stock del producto: {producto.nombre}")  # Depuración
+                producto.cantidad += venta_producto.cantidad  # Devolver la cantidad al stock
 
-    db.session.delete(venta)  # Eliminar la venta
-    db.session.commit()  # Guardar cambios
-    flash("Venta eliminada correctamente.", "success")
+        # Eliminar las entradas en la tabla intermedia VentaProducto
+        print("Eliminando registros en VentaProducto...")  # Depuración
+        for venta_producto in venta.productos:
+            db.session.delete(venta_producto)
 
-    return redirect(url_for('routes.listar_ventas'))  # Redirigir a la lista de ventas
+        # Finalmente, eliminar la venta
+        print("Eliminando la venta...")  # Depuración
+        db.session.delete(venta)
+        db.session.commit()  # Guardar cambios
+        print("Venta eliminada correctamente.")  # Depuración
+
+        flash("Venta eliminada correctamente.", "success")
+        return redirect(url_for('routes.listar_ventas'))  # Redirigir a la lista de ventas
+
+    except Exception as e:
+        print(f"Error: {str(e)}")  # Depuración
+        db.session.rollback()
+        flash(f"Error al eliminar venta: {str(e)}", "danger")
+        return redirect(url_for('routes.listar_ventas'))

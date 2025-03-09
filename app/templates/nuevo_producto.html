@@ -29,8 +29,10 @@
                 {% endfor %}
             </select>
         </div>
-        <button type="submit" class="btn btn-primary">Guardar Producto</button>
-        <a href="{{ url_for('routes.index') }}" class="btn btn-secondary">Cancelar</a>
+        <div class="d-grid gap-2 d-md-block">
+            <button type="submit" class="btn btn-primary">Guardar Producto</button>
+            <a href="{{ url_for('routes.index') }}" class="btn btn-secondary">Cancelar</a>
+        </div>
     </form>
 </div>
 {% endblock %}
