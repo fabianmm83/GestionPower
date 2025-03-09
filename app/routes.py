@@ -107,77 +107,69 @@ def eliminar_producto(id):
     
 @routes.route('/venta/nueva', methods=['GET', 'POST'])
 def nueva_venta():
-    if request.method == 'POST':
-        productos_seleccionados = request.form.getlist('productos')
-        total_venta = 0
-        productos_validos = []
+    try:
+        if request.method == 'POST':
+            productos_seleccionados = request.form.getlist('productos')
+            print("Productos seleccionados:", productos_seleccionados)  # Depuración
+        
+            total_venta = 0
+            productos_validos = []
 
-        # Verificar el stock antes de procesar la venta
-        for producto_id in productos_seleccionados:
-            producto = Producto.query.get(producto_id)  # Aquí se cierra correctamente el paréntesis
-            
-            if not producto:
-                flash(f"El producto con ID {producto_id} no existe.", "danger")
-                return redirect(url_for('routes.nueva_venta'))
-
-            cantidad = int(request.form.get(f'cantidad_{producto_id}', 1))
-
-            if cantidad > 0:  # Solo considerar productos con cantidad válida
-                if cantidad > producto.cantidad:
-                    flash(f"No hay suficiente stock para {producto.nombre}. Stock disponible: {producto.cantidad}", "danger")
+            for producto_id in productos_seleccionados:
+                producto = Producto.query.get(producto_id)
+                print(f"Revisando producto: {producto.nombre} con ID {producto_id}")  # Depuración
+        
+                if not producto:
+                    flash(f"El producto con ID {producto_id} no existe.", "danger")
                     return redirect(url_for('routes.nueva_venta'))
-                
+
+                cantidad = int(request.form.get(f'cantidad_{producto_id}', 1))
+                print(f"Cantidad seleccionada: {cantidad}")  # Depuración
+
+                if cantidad > producto.cantidad:
+                    flash(f"No hay suficiente stock para {producto.nombre}.", "danger")
+                    return redirect(url_for('routes.nueva_venta'))
+
                 productos_validos.append((producto, cantidad))
 
-        # Si hay productos válidos, proceder con la venta
-        if productos_validos:
-            venta = Venta(total=total_venta)
-            db.session.add(venta)
+            if productos_validos:
+                venta = Venta(total=0)
+                db.session.add(venta)
+                db.session.flush()
 
-            for producto, cantidad in productos_validos:
-                # Crear la relación VentaProducto
-                venta_producto = VentaProducto(
-                    venta_id=venta.id,
-                    producto_id=producto.id,
-                    cantidad=cantidad,
-                    precio=producto.precio
-                )
-                db.session.add(venta_producto)
+                for producto, cantidad in productos_validos:
+                    venta_producto = VentaProducto(
+                        venta_id=venta.id,
+                        producto_id=producto.id,
+                        cantidad=cantidad,
+                        precio=producto.precio
+                    )
+                    db.session.add(venta_producto)
+                    producto.cantidad -= cantidad
+                    movimiento = MovimientoInventario(
+                        producto_id=producto.id,
+                        tipo='salida',
+                        cantidad=cantidad
+                    )
+                    db.session.add(movimiento)
+                    total_venta += producto.precio * cantidad
 
-                # Actualizar el stock del producto
-                producto.cantidad -= cantidad
+                venta.total = total_venta
+                db.session.commit()
 
-                # Registrar movimiento de salida
-                movimiento = MovimientoInventario(
-                    producto_id=producto.id,
-                    tipo='salida',
-                    cantidad=cantidad
-                )
-                db.session.add(movimiento)
+                flash("Venta registrada correctamente.", "success")
+                return redirect(url_for('routes.index'))
 
-                # Actualizar el total de la venta
-                total_venta += producto.precio * cantidad
+            flash("No se seleccionaron productos válidos.", "warning")
+            return redirect(url_for('routes.nueva_venta'))
 
-            venta.total = total_venta
-            db.session.commit()
+        productos = Producto.query.filter_by(activo=True).all()
+        return render_template('nueva_venta.html', productos=productos)
 
-            flash("Venta registrada correctamente.", "success")
-            return redirect(url_for('routes.index'))
-
-        flash("No se seleccionaron productos válidos para la venta.", "warning")
+    except Exception as e:
+        print("Error en nueva_venta:", str(e))  # Depuración
+        flash(f"Error al procesar la venta: {str(e)}", "danger")
         return redirect(url_for('routes.nueva_venta'))
-
-    # Obtener los productos disponibles (activos)
-    productos = Producto.query.filter_by(activo=True).all()
-    return render_template('nueva_venta.html', productos=productos)   
-   
-    
-    
-    
-    
-    
-    
-    
     
 @routes.route('/ventas', methods=['GET'])
 def listar_ventas():
@@ -249,3 +241,22 @@ def eliminar_venta(id):
         db.session.rollback()
         flash(f"Error al eliminar venta: {str(e)}", "danger")
         return redirect(url_for('routes.listar_ventas'))
+    
+    
+    
+@routes.route('/analisis')
+def analisis_datos():
+    ventas = Venta.query.all()
+
+    # Total de ventas
+    total_ventas = sum([venta.total for venta in ventas])
+
+    # Producto más vendido
+    productos_vendidos = db.session.query(
+        VentaProducto.producto_id, 
+        db.func.sum(VentaProducto.cantidad).label('total_vendido')
+    ).group_by(VentaProducto.producto_id).order_by(db.desc('total_vendido')).first()
+
+    producto_mas_vendido = Producto.query.get(productos_vendidos.producto_id) if productos_vendidos else None
+
+    return render_template('analisis.html', total_ventas=total_ventas, producto_mas_vendido=producto_mas_vendido)

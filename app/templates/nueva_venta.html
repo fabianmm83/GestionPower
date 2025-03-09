@@ -12,13 +12,13 @@
                     {% set color = "bg-success text-white" if producto.cantidad > 10 else "bg-warning text-dark" if producto.cantidad > 5 else "bg-danger text-white" %}
                     <div class="list-group-item {{ color }}">
                         <div class="form-check">
-                            <input class="form-check-input producto-checkbox" type="checkbox" name="productos" value="{{ producto.id }}" id="producto{{ producto.id }}">
+                            <input class="form-check-input producto-checkbox" type="checkbox" name="productos" value="{{ producto.id }}" id="producto{{ producto.id }}" data-precio="{{ producto.precio }}" data-nombre="{{ producto.nombre }}">
                             <label class="form-check-label" for="producto{{ producto.id }}">
                                 <strong>{{ producto.nombre }}</strong> - ${{ producto.precio }} (Stock: {{ producto.cantidad }})
                             </label>
-                            <p class="small mb-1"><em>{{ producto.descripcion }}</em></p> <!-- Se muestra la descripción -->
+                            <p class="small mb-1"><em>{{ producto.descripcion }}</em></p>
                         </div>
-                    <div class="mt-2">
+                        <div class="mt-2">
                             <label for="cantidad_{{ producto.id }}" class="form-label">Cantidad:</label>
                             <input type="number" class="form-control cantidad-input" id="cantidad_{{ producto.id }}" name="cantidad_{{ producto.id }}" value="1" min="1" max="{{ producto.cantidad }}">
                         </div>
@@ -75,27 +75,21 @@
         const totalVenta = document.getElementById('totalVenta');
         let total = 0;
 
+        // Validar que se haya seleccionado al menos un producto
+        if (productosSeleccionados.length === 0) {
+            alert("Por favor, seleccione al menos un producto.");
+            return;
+        }
+
         // Limpiar el resumen anterior
         resumenBody.innerHTML = '';
 
         // Generar el resumen
         productosSeleccionados.forEach(producto => {
-            const productoId = producto.value;
-            const cantidad = document.querySelector(`#cantidad_${productoId}`).value;
-            const precio = parseFloat(producto.nextElementSibling.textContent.match(/\$\d+/)[0].replace('$', ''));
-            const subtotal = cantidad * precio;
+            const { nombre, cantidad, precio, subtotal } = obtenerDatosProducto(producto);
+            if (!validarCantidad(producto, cantidad)) return;
 
-            // Agregar fila al resumen
-            resumenBody.innerHTML += `
-                <tr>
-                    <td>${producto.nextElementSibling.textContent.split(' - ')[0]}</td>
-                    <td>${cantidad}</td>
-                    <td>$${precio.toFixed(2)}</td>
-                    <td>$${subtotal.toFixed(2)}</td>
-                </tr>
-            `;
-
-            // Sumar al total
+            agregarFilaResumen(resumenBody, nombre, cantidad, precio, subtotal);
             total += subtotal;
         });
 
@@ -104,6 +98,40 @@
 
         // Mostrar el modal
         new bootstrap.Modal(document.getElementById('resumenModal')).show();
+    }
+
+    function obtenerDatosProducto(producto) {
+        const productoId = producto.value;
+        const cantidadInput = document.querySelector(`#cantidad_${productoId}`);
+        const cantidad = parseInt(cantidadInput.value);
+        const precio = parseFloat(producto.dataset.precio);
+        const subtotal = cantidad * precio;
+        const nombre = producto.dataset.nombre;
+
+        return { nombre, cantidad, precio, subtotal };
+    }
+
+    function validarCantidad(producto, cantidad) {
+        const productoId = producto.value;
+        const cantidadInput = document.querySelector(`#cantidad_${productoId}`);
+        const stock = parseInt(cantidadInput.max);
+
+        if (cantidad > stock) {
+            alert(`La cantidad seleccionada para ${producto.dataset.nombre} supera el stock disponible (${stock}).`);
+            return false;
+        }
+        return true;
+    }
+
+    function agregarFilaResumen(resumenBody, nombre, cantidad, precio, subtotal) {
+        resumenBody.innerHTML += `
+            <tr>
+                <td>${nombre}</td>
+                <td>${cantidad}</td>
+                <td>$${precio.toFixed(2)}</td>
+                <td>$${subtotal.toFixed(2)}</td>
+            </tr>
+        `;
     }
 
     function confirmarVenta() {
