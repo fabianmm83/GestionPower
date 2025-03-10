@@ -27,8 +27,9 @@ class ProductionConfig(Config):
         'postgresql://powerdb_821m_user:bpboqcKOK4PbcCmVi77rbEjdnuZbVcvX@dpg-cv6eklnnoe9s73bukq3g-a/powerdb_821m'
     )
 
+
 # Selecciona la configuración según el entorno
-if os.getenv('FLASK_ENV') == 'production':
-    config = ProductionConfig()
-else:
-    config = DevelopmentConfig()
+config = ProductionConfig() if os.getenv('FLASK_ENV') == 'production' else DevelopmentConfig()
+
+# Aquí puedes agregar algunas verificaciones de depuración si lo deseas
+print(f"Using database: {config.SQLALCHEMY_DATABASE_URI}")
