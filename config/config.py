@@ -24,9 +24,9 @@ class ProductionConfig(Config):
     # Configuración para producción (usando PostgreSQL en Render)
     SQLALCHEMY_DATABASE_URI = os.getenv(
         'SQLALCHEMY_DATABASE_URI', 
-        'postgresql://powerdb_821m_user:bpboqcKOK4PbcCmVi77rbEjdnuZbVcvX@dpg-cv6eklnnoe9s73bukq3g-a/powerdb_821m'
+        'postgresql://powerdb_821m_user:bpboqcKOK4PbcCmVi77rbEjdnuZbVcvX@dpg-cv6eklnnoe9s73bukq3g-a.oregon-postgres.render.com/powerdb_821m'
     )
-
+                    
 
 # Selecciona la configuración según el entorno
 config = ProductionConfig() if os.getenv('FLASK_ENV') == 'production' else DevelopmentConfig()
