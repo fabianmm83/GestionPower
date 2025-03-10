@@ -1,0 +1,17 @@
+<table>
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th>Cantidad Disponible</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for producto, cantidad in inventario.items() %}
+        <tr>
+          <td>{{ producto }}</td>
+          <td>{{ cantidad }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  

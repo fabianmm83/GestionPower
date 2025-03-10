@@ -1,0 +1,17 @@
+<table>
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th>Rotación de Inventario</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for producto, rotacion in rotacion.items() %}
+        <tr>
+          <td>{{ producto }}</td>
+          <td>{{ rotacion }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  

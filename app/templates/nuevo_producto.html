@@ -10,7 +10,7 @@
         </div>
         <div class="mb-3">
             <label for="descripcion" class="form-label">Descripción</label>
-            <textarea class="form-control" id="descripcion" name="descripcion"></textarea>
+            <textarea class="form-control" id="descripcion" name="descripcion" placeholder="Ej: Color: Rojo, Talla: M, L, XL, etc."></textarea>
         </div>
         <div class="mb-3">
             <label for="precio" class="form-label">Precio</label>
@@ -25,7 +25,7 @@
             <select class="form-control" id="categoria" name="categoria" required>
                 <option value="">Seleccionar categoría</option>
                 {% for categoria in categorias %}
-                    <option value="{{ categoria }}">{{ categoria }}</option>
+                    <option value="{{ categoria.id }}">{{ categoria.nombre }}</option>
                 {% endfor %}
             </select>
         </div>

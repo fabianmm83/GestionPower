@@ -22,7 +22,14 @@
         </div>
         <div class="mb-3">
             <label for="categoria" class="form-label">Categoría</label>
-            <input type="text" class="form-control" id="categoria" name="categoria" value="{{ producto.categoria }}">
+            <select class="form-control" id="categoria" name="categoria" required>
+                <option value="" disabled>Seleccionar categoría</option>
+                {% for categoria in categorias %}
+                    <option value="{{ categoria.id }}" {% if categoria.id == producto.categoria_id %}selected{% endif %}>
+                        {{ categoria.nombre }}
+                    </option>
+                {% endfor %}
+            </select>
         </div>
         <div class="mb-3">
             <label for="fecha_registro" class="form-label">Fecha de Registro</label>

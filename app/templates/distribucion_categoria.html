@@ -1,0 +1,17 @@
+<table>
+    <thead>
+      <tr>
+        <th>Categoría</th>
+        <th>Cantidad Disponible</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for categoria, cantidad in distribucion.items() %}
+        <tr>
+          <td>{{ categoria }}</td>
+          <td>{{ cantidad }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  

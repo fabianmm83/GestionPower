@@ -82,8 +82,8 @@
                 <h4 class="card-title">Resumen de Ventas</h4>
                 <p class="card-text">
                     <strong>Total de ventas registradas:</strong> {{ ventas | length }} <br>
-                    <strong>Mayor venta:</strong> ${{ mayor_venta | round(2) }} <br>
-                    <strong>Pago promedio:</strong> ${{ pago_promedio | round(2) }}
+                    <strong>Mayor venta:</strong> ${{ mayor_venta if mayor_venta is not none else 0 | round(2) }} <br>
+                    <strong>Pago promedio:</strong> ${{ pago_promedio if pago_promedio is not none else 0 | round(1) }}
                 </p>
             </div>
         </div>
@@ -99,7 +99,7 @@
                             <div class="carousel-item {% if loop.first %}active{% endif %}">
                                 <h5>{{ mes }}</h5>
                                 <p><strong>Total de ventas:</strong> {{ datos.total_ventas }}</p>
-                                <p><strong>Total recaudado:</strong> ${{ datos.total_recaudado | round(2) }}</p>
+                                <p><strong>Total recaudado:</strong> ${{ datos.total_recaudado if datos.total_recaudado is not none else 0 | round(2) }}</p>
                             </div>
                             {% endfor %}
                         </div>
@@ -153,7 +153,7 @@
                                     </td>
                                     <td class="text-center">{{ venta.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
                                     <td class="text-center">
-                                        <span class="badge bg-success">${{ venta.total | round(2) }}</span>
+                                        <span class="badge bg-success">${{ venta.total if venta.total is not none else 0 | round(2) }}</span>
                                     </td>
                                     <td class="text-center">
                                         <form method="POST" action="{{ url_for('routes.eliminar_venta', id=venta.id) }}" 

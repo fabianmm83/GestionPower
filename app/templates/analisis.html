@@ -1,55 +1,26 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 
 {% block title %}Análisis de Productos{% endblock %}
 
 {% block content %}
-    <h1 class="text-center mb-4">Análisis de Productos</h1>
-
-    <!-- Formulario de filtro -->
-    <div class="row mb-4">
-        <div class="col-md-12 text-center">
-            <form method="get" action="">
-                <label for="filtro">Filtrar por:</label>
-                <select name="filtro" id="filtro" onchange="this.form.submit()">
-                    <option value="vendidos" {% if request.args.get('filtro', 'vendidos') == 'vendidos' %}selected{% endif %}>Solo Productos Vendidos</option>
-                    <option value="todos" {% if request.args.get('filtro', 'vendidos') == 'todos' %}selected{% endif %}>Todos los Productos</option>
-                </select>
-            </form>
-        </div>
-    </div>
-
+<div class="container">
+    <h1 class="my-4">Análisis de Movimientos de Inventario</h1>
     <div class="row">
-        <!-- Tabla de productos vendidos -->
-        <div class="col-md-12">
-            <h2 class="text-center mb-4">Productos Vendidos</h2>
-            <table class="table table-striped table-bordered">
-                <thead>
-                    <tr>
-                        <th>Producto</th>
-                        <th>Total Vendido</th>
-                        <th>Ventas Totales</th>
-                        <th>Stock Restante</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for producto in datos %}
-                        <tr class="{% if producto.stock_restante < 0 %}table-danger{% endif %}">
-                            <td>{{ producto.nombre }}</td>
-                            <td>{{ producto.total_vendido }}</td>
-                            <td>${{ producto.ventas_totales }}</td>
-                            <td>{{ producto.stock_restante }}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Gráfico de productos más vendidos -->
-        <div class="col-md-12 mt-5">
-            <h2 class="text-center mb-4">Gráfico de Productos Más Vendidos</h2>
-            <div class="text-center">
-                <img src="data:image/png;base64,{{ grafico_productos }}" alt="Gráfico de Productos Más Vendidos" class="img-fluid rounded">
+        {% for item in datos %}
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5>{{ item[0].nombre }}</h5> <!-- Nombre del producto -->
+                    <p>Categoría: {{ item[0].categoria.nombre }}</p> <!-- Nombre de la categoría -->
+                </div>
+                <div class="card-body">
+                    <p><strong>Entradas:</strong> {{ item.total_vendido }}</p>
+                    <p><strong>Salidas:</strong> {{ item.ventas_totales }}</p>
+                    <p><strong>Stock Actual:</strong> {{ item.stock_restante }}</p>
+                </div>
             </div>
         </div>
+        {% endfor %}
     </div>
+</div>
 {% endblock %}

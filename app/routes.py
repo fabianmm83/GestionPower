@@ -2,12 +2,14 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from sqlalchemy import DateTime, func, case
 from app import db
-from app.models import Producto, Venta, VentaProducto, MovimientoInventario
+from app.models import Producto, Categoria, Venta, VentaProducto, MovimientoInventario
 from collections import defaultdict
 from config.config import Config  # type: ignore
 import io
 import base64
 import logging
+from sqlalchemy.orm import joinedload
+
 
 # Configuración de logging
 logging.basicConfig(filename='app.log', level=logging.ERROR)
@@ -57,8 +59,18 @@ def recalcular_stock():
 
 @routes.route('/')
 def index():
-    productos = Producto.query.filter_by(activo=True).all()  # Solo productos activos
+    page = request.args.get('page', 1, type=int)  # Página actual (por defecto es 1)
+    productos = Producto.query.filter_by(activo=True).paginate(page=page, per_page=10)
+
     return render_template('index.html', productos=productos)
+
+
+@routes.route('/productos')
+def productos():
+    page = request.args.get('page', 1, type=int)  # Página actual (por defecto es 1)
+    productos_paginados = Producto.query.filter_by(activo=True).paginate(page=page, per_page=10)
+
+    return render_template('productos_lista.html', productos=productos_paginados)
 
 @routes.route('/producto/nuevo', methods=['GET', 'POST'])
 def nuevo_producto():
@@ -67,14 +79,22 @@ def nuevo_producto():
         descripcion = request.form['descripcion']
         precio = float(request.form['precio'])
         cantidad = int(request.form['cantidad'])
-        categoria = request.form['categoria']
+        categoria_id = request.form['categoria']  # Aquí obtenemos el ID de la categoría seleccionada
 
+        # Obtener la instancia de la categoría usando el ID
+        categoria = Categoria.query.get(categoria_id)
+
+        if not categoria:
+            flash("Categoría no válida.", "danger")
+            return redirect(url_for('routes.nuevo_producto'))
+
+        # Crear el nuevo producto con la instancia de la categoría
         nuevo_producto = Producto(
             nombre=nombre,
             descripcion=descripcion,
             precio=precio,
             cantidad=cantidad,
-            categoria=categoria
+            categoria=categoria  # Asignar la instancia de Categoria
         )
         db.session.add(nuevo_producto)
         db.session.commit()
@@ -91,7 +111,9 @@ def nuevo_producto():
         flash('Producto agregado correctamente.', 'success')
         return redirect(url_for('routes.index'))
 
-    return render_template('nuevo_producto.html', categorias=CATEGORIAS_PREDETERMINADAS)
+    categorias = Categoria.query.all()  # Obtener todas las categorías desde la base de datos
+    return render_template('nuevo_producto.html', categorias=categorias)
+
 
 @routes.route('/producto/editar/<int:id>', methods=['GET', 'POST'])
 def editar_producto(id):
@@ -101,44 +123,32 @@ def editar_producto(id):
         producto.descripcion = request.form['descripcion']
         producto.precio = float(request.form['precio'])
         producto.cantidad = int(request.form['cantidad'])
-        categoria = request.form['categoria']
+        categoria_id = request.form['categoria']  # Aquí obtenemos el ID de la categoría seleccionada
 
-        # Validar que la categoría seleccionada esté en la lista de categorías predeterminadas
-        if categoria not in CATEGORIAS_PREDETERMINADAS:
+        # Obtener la instancia de la categoría usando el ID
+        categoria = Categoria.query.get(categoria_id)
+
+        if not categoria:
             flash("Categoría no válida.", "danger")
             return redirect(url_for('routes.editar_producto', id=id))
 
-        producto.categoria = categoria
+        producto.categoria = categoria  # Asignar la instancia de Categoria al producto
         db.session.commit()
 
         flash("Producto actualizado correctamente.", "success")
         return redirect(url_for('routes.index'))
 
-    return render_template('editar_producto.html', producto=producto, categorias=CATEGORIAS_PREDETERMINADAS)
+    categorias = Categoria.query.all()  # Obtener todas las categorías desde la base de datos
+    return render_template('editar_producto.html', producto=producto, categorias=categorias)
 
-@routes.route('/producto/eliminar/<int:id>', methods=['POST'])
-def eliminar_producto(id):
-    try:
-        producto = Producto.query.get_or_404(id)
 
-        # Verifica si existen registros en la tabla intermedia de ventas asociadas al producto
-        ventas_asociadas = VentaProducto.query.filter_by(producto_id=id).first()
-        if ventas_asociadas:
-            flash("No se puede eliminar el producto porque tiene ventas asociadas.", "danger")
-            return redirect(url_for('routes.index'))
 
-        # Si no hay ventas asociadas, marca el producto como inactivo
-        producto.activo = False
-        db.session.commit()
 
-        flash("Producto marcado como inactivo.", "success")
-        return redirect(url_for('routes.index'))
 
-    except Exception as e:
-        db.session.rollback()
-        logging.error(f"Error al eliminar producto: {str(e)}")
-        flash(f"Error al eliminar producto: {str(e)}", "danger")
-        return redirect(url_for('routes.index'))
+
+
+
+
 
 @routes.route('/venta/nueva', methods=['GET', 'POST'])
 def nueva_venta():
@@ -203,6 +213,11 @@ def nueva_venta():
         flash("Ocurrió un error al procesar la venta. Por favor, inténtalo de nuevo.", "danger")
         return redirect(url_for('routes.nueva_venta'))
 
+
+
+
+
+
 @routes.route('/ventas', methods=['GET'])
 def listar_ventas():
     ventas = Venta.query.all()
@@ -220,7 +235,7 @@ def listar_ventas():
     grafico_ventas = generar_grafico_ventas(ventas_por_mes)
 
     return render_template(
-        "ventas.html", 
+        "ventas_lista.html", 
         ventas=ventas,
         mayor_venta=mayor_venta,
         pago_promedio=pago_promedio,
@@ -228,10 +243,22 @@ def listar_ventas():
         grafico_ventas=grafico_ventas  # Pasamos el gráfico al template
     )
 
+
+
+
+
+
+
 @routes.route('/movimientos')
 def listar_movimientos():
     movimientos = MovimientoInventario.query.order_by(MovimientoInventario.fecha.desc()).all()
-    return render_template('movimientos.html', movimientos=movimientos)
+    return render_template('movimientos_lista.html', movimientos=movimientos)
+
+
+
+
+
+
 
 @routes.route('/venta/eliminar/<int:id>', methods=['POST'])
 def eliminar_venta(id):
@@ -257,7 +284,11 @@ def eliminar_venta(id):
         logging.error(f"Error al eliminar venta: {str(e)}")
         flash(f"Error al eliminar venta: {str(e)}", "danger")
         return redirect(url_for('routes.listar_ventas'))
-    
+
+
+
+
+
 @routes.route('/analisis_productos')
 def analisis_productos():
     # Obtener el parámetro de filtro de la URL (por defecto 'vendidos')
@@ -265,7 +296,7 @@ def analisis_productos():
 
     # Consulta base para obtener los productos vendidos y las cantidades
     query = db.session.query(
-        Producto.nombre,
+        Producto,
         db.func.coalesce(db.func.sum(VentaProducto.cantidad), 0).label('total_vendido'),
         db.func.coalesce(db.func.sum(VentaProducto.cantidad * Producto.precio), 0).label('ventas_totales'),
         db.case(
@@ -274,7 +305,8 @@ def analisis_productos():
             else_=0
         ).label('stock_restante')
     ).join(VentaProducto, VentaProducto.producto_id == Producto.id, isouter=True) \
-     .group_by(Producto.id)
+     .join(Categoria, Categoria.id == Producto.categoria_id) \
+     .group_by(Producto.id, Categoria.id)  # Agrupamos por Producto y Categoria
 
     # Aplicar el filtro según el parámetro
     if filtro == 'vendidos':
@@ -289,7 +321,7 @@ def analisis_productos():
         return render_template('analisis.html', datos=[], grafico_productos=None, filtro=filtro)
 
     # Generar gráfico de productos más vendidos
-    productos = [producto.nombre for producto in productos_venta]
+    productos = [producto[0].nombre for producto in productos_venta]  # Accede al producto (0) en la tupla
     cantidad_vendida = [producto.total_vendido for producto in productos_venta]
 
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -310,6 +342,15 @@ def analisis_productos():
                            datos=productos_venta, 
                            grafico_productos=grafico_productos_base64,
                            filtro=filtro)
+
+
+
+
+
+    
+    
+    
+    
     
 @routes.route('/ver_base_de_datos')
 def ver_base_de_datos():
@@ -323,7 +364,7 @@ def ver_base_de_datos():
     movimientos = MovimientoInventario.query.all()
 
     # Renderizar una plantilla con los datos
-    return render_template('ver_base_de_datos.html', 
+    return render_template('base_de_datos.html', 
                            productos=productos, 
                            ventas=ventas, 
-                           movimientos=movimientos)   
+                           movimientos=movimientos)

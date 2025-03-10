@@ -1,0 +1,37 @@
+<tbody>
+    {% for producto in productos.items %}  <!-- Cambiar para usar productos.items -->
+        {% if producto.activo %}
+            <tr>
+                <td>{{ producto.id }}</td>
+                <td>{{ producto.nombre }}</td>
+                <td>{{ producto.descripcion }}</td>
+                <td>${{ producto.precio }}</td>
+                <td>{{ producto.cantidad }}</td>
+                <td>{{ producto.categoria }}</td>
+                <td>
+                    {% if producto.fecha_registro %}
+                        {{ producto.fecha_registro.strftime('%Y-%m-%d %H:%M') }}
+                    {% else %}
+                        No tiene fecha
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ url_for('routes.editar_producto', id=producto.id) }}" class="btn btn-warning btn-sm">Editar</a>
+                </td>
+            </tr>
+        {% endif %}
+    {% endfor %}
+</tbody>
+
+<!-- Paginación -->
+<div>
+    {% if productos.has_prev %}
+        <a href="{{ url_for('routes.productos', page=productos.prev_num) }}" class="btn btn-secondary btn-sm">Anterior</a>
+    {% endif %}
+
+    <span> Página {{ productos.page }} de {{ productos.pages }} </span>
+
+    {% if productos.has_next %}
+        <a href="{{ url_for('routes.productos', page=productos.next_num) }}" class="btn btn-secondary btn-sm">Siguiente</a>
+    {% endif %}
+</div>
