@@ -1,4 +1,8 @@
 import os
+from dotenv import load_dotenv
+
+
+load_dotenv()
 
 class Config:
     # Configuración común para todos los entornos
@@ -32,4 +36,6 @@ class ProductionConfig(Config):
 config = ProductionConfig() if os.getenv('FLASK_ENV') == 'production' else DevelopmentConfig()
 
 # Aquí puedes agregar algunas verificaciones de depuración si lo deseas
-print(f"Using database: {config.SQLALCHEMY_DATABASE_URI}")
+print(f"Usando la base de datos de {config.SQLALCHEMY_DATABASE_URI}")
+
+print(f"FLASK_ENV: {os.getenv('FLASK_ENV')}")
