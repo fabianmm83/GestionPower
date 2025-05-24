@@ -5,13 +5,23 @@
 {% block content %}
 <div class="container">
     <h1 class="my-4">Análisis de Movimientos de Inventario</h1>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    {% if datos %}
     <div class="row">
         {% for item in datos %}
         <div class="col-md-4">
             <div class="card mb-4">
                 <div class="card-header">
-                    <h5>{{ item[0].nombre }}</h5> <!-- Nombre del producto -->
-                    <p>Categoría: {{ item[0].categoria.nombre }}</p> <!-- Nombre de la categoría -->
+                    <h5>{{ item.Producto.nombre }}</h5>
+                    <p>Categoría: {{ item.Producto.categoria.nombre }}</p>
                 </div>
                 <div class="card-body">
                     <p><strong>Entradas:</strong> {{ item.total_vendido }}</p>
@@ -22,5 +32,17 @@
         </div>
         {% endfor %}
     </div>
+    
+    {% if grafico_productos %}
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <img src="data:image/png;base64,{{ grafico_productos }}" alt="Gráfico de productos" class="img-fluid">
+        </div>
+    </div>
+    {% endif %}
+    
+    {% else %}
+    <div class="alert alert-info">No hay datos para mostrar con los filtros actuales.</div>
+    {% endif %}
 </div>
 {% endblock %}

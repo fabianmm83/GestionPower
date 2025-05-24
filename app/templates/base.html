@@ -8,14 +8,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Estilos personalizados -->
     <style>
-        /* Fondo de la página con el logo */
+        /* Fondo de la página */
         body {
             background-color: #fff0f6; /* Rosa muy claro */
-            background-image: url("{{ url_for('static', filename='images/logo.png') }}");
-            background-size: 25%; /* Tamaño del logo */
-            background-position: center; /* Centrar el logo */
-            background-repeat: no-repeat; /* No repetir el logo */
-            background-attachment: fixed; /* Fondo fijo */
         }
 
         /* Barra de navegación */
@@ -50,6 +45,55 @@
             border-top: 1px solid #ff85a2; /* Borde rosa un poco más oscuro */
             color: #333; /* Color de texto oscuro para contraste */
         }
+
+        /* Estilos para los botones */
+        .btn-analisis {
+            background-color: #4e79a7; /* Azul suave */
+            color: white;
+            border: none;
+            margin-left: 10px;
+        }
+
+        .btn-analisis:hover {
+            background-color: #3a5f8a;
+            color: white;
+        }
+
+        .btn-base-datos {
+            background-color: #e15759; /* Rojo coral */
+            color: white;
+            border: none;
+            margin-left: 10px;
+        }
+
+        .btn-base-datos:hover {
+            background-color: #c94547;
+            color: white;
+        }
+
+        .btn-dashboard {
+            background-color: #59a14f; /* Verde */
+            color: white;
+            border: none;
+            margin-left: 10px;
+        }
+
+        .btn-dashboard:hover {
+            background-color: #47893e;
+            color: white;
+        }
+
+        .btn-tienda {
+            background-color: #edc948; /* Amarillo */
+            color: #333;
+            border: none;
+            margin-left: 10px;
+        }
+
+        .btn-tienda:hover {
+            background-color: #dbb732;
+            color: #333;
+        }
     </style>
 </head>
 <body class="bg-light">
@@ -65,7 +109,17 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('routes.index') }}">Inicio</a>
+                        <a class="nav-link btn btn-dashboard" href="{{ url_for('routes.dashboard') }}">
+                            <i class="fas fa-tachometer-alt me-1"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link btn btn-tienda" href="{{ url_for('routes.index_tienda') }}">
+                            <i class="fas fa-store me-1"></i> TIENDA
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('routes.index') }}">Inventario</a>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('routes.nuevo_producto') }}">Agregar Productos</a>
@@ -78,11 +132,11 @@
                     </li>
                     <!-- Botón para ir al análisis de datos -->
                     <li class="nav-item">
-                        <a href="{{ url_for('routes.analisis_productos') }}" class="btn btn-info">Ver Análisis</a>
+                        <a href="{{ url_for('routes.analisis_productos') }}" class="btn btn-analisis">Ver Análisis</a>
                     </li>
                     <!-- Botón para ver la base de datos -->
                     <li class="nav-item">
-                        <a href="{{ url_for('routes.ver_base_de_datos') }}" class="btn btn-warning ms-2">Ver Base de Datos</a>
+                        <a href="{{ url_for('routes.ver_base_de_datos') }}" class="btn btn-base-datos">Ver Base de Datos</a>
                     </li>
                 </ul>
             </div>

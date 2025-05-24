@@ -2,37 +2,112 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h2>Agregar Nuevo Producto</h2>
-    <form action="{{ url_for('routes.nuevo_producto') }}" method="POST">
-        <div class="mb-3">
-            <label for="nombre" class="form-label">Nombre del Producto</label>
-            <input type="text" class="form-control" id="nombre" name="nombre" required>
+    <h2>Agregar Producto</h2>
+    <form action="{{ url_for('routes.nuevo_producto') }}" method="POST" id="productoForm">
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="nombre" class="form-label">Nombre del Producto</label>
+                    <input type="text" class="form-control" id="nombre" name="nombre" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="categoria" class="form-label">Categoría</label>
+                    <select class="form-control" id="categoria" name="categoria" required>
+                        <option value="">Seleccionar categoría</option>
+                        {% for categoria in categorias %}
+                            <option value="{{ categoria.id }}">{{ categoria.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="cantidad" class="form-label">Cantidad en Stock</label>
+                    <input type="number" class="form-control" id="cantidad" name="cantidad" required>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="descripcion" class="form-label">Descripción</label>
+                    <textarea class="form-control" id="descripcion" name="descripcion" rows="3"></textarea>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="costo_adquisicion" class="form-label">Costo de Adquisición</label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="number" class="form-control" id="costo_adquisicion" name="costo_adquisicion" step="0.01" required>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label for="precio_venta" class="form-label">Precio de Venta al Público</label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="number" class="form-control" id="precio_venta" name="precio_venta" step="0.01" required>
+                    </div>
+                </div>
+                
+                <div class="card mb-3">
+                    <div class="card-header">Calculadora de Margen</div>
+                    <div class="card-body">
+                        <div class="mb-2">
+                            <label>Margen de Ganancia:</label>
+                            <span id="margen_ganancia">0%</span>
+                        </div>
+                        <div class="mb-2">
+                            <label>Ganancia por Unidad:</label>
+                            <span id="ganancia_unidad">$0.00</span>
+                        </div>
+                        <div class="mb-2">
+                            <label>Ganancia Total Potencial:</label>
+                            <span id="ganancia_total">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="mb-3">
-            <label for="descripcion" class="form-label">Descripción</label>
-            <textarea class="form-control" id="descripcion" name="descripcion" placeholder="Ej: Color: Rojo, Talla: M, L, XL, etc."></textarea>
-        </div>
-        <div class="mb-3">
-            <label for="precio" class="form-label">Precio</label>
-            <input type="number" class="form-control" id="precio" name="precio" step="0.01" required>
-        </div>
-        <div class="mb-3">
-            <label for="cantidad" class="form-label">Cantidad</label>
-            <input type="number" class="form-control" id="cantidad" name="cantidad" required>
-        </div>
-        <div class="mb-3">
-            <label for="categoria" class="form-label">Categoría</label>
-            <select class="form-control" id="categoria" name="categoria" required>
-                <option value="">Seleccionar categoría</option>
-                {% for categoria in categorias %}
-                    <option value="{{ categoria.id }}">{{ categoria.nombre }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="d-grid gap-2 d-md-block">
-            <button type="submit" class="btn btn-primary">Guardar Producto</button>
-            <a href="{{ url_for('routes.index') }}" class="btn btn-secondary">Cancelar</a>
+        
+        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+            <a href="{{ url_for('routes.index') }}" class="btn btn-secondary me-md-2">Volver al Inventario</a>
+            <button type="submit" class="btn btn-primary">Agregar Producto</button>
         </div>
     </form>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const costoInput = document.getElementById('costo_adquisicion');
+    const precioInput = document.getElementById('precio_venta');
+    const cantidadInput = document.getElementById('cantidad');
+    const margenSpan = document.getElementById('margen_ganancia');
+    const gananciaUnidadSpan = document.getElementById('ganancia_unidad');
+    const gananciaTotalSpan = document.getElementById('ganancia_total');
+    
+    function calcularMargen() {
+        const costo = parseFloat(costoInput.value) || 0;
+        const precio = parseFloat(precioInput.value) || 0;
+        const cantidad = parseInt(cantidadInput.value) || 0;
+        
+        if (costo > 0 && precio > 0) {
+            const gananciaUnidad = precio - costo;
+            const margen = ((precio - costo) / costo) * 100;
+            const gananciaTotal = gananciaUnidad * cantidad;
+            
+            margenSpan.textContent = margen.toFixed(2) + '%';
+            gananciaUnidadSpan.textContent = '$' + gananciaUnidad.toFixed(2);
+            gananciaTotalSpan.textContent = '$' + gananciaTotal.toFixed(2);
+        } else {
+            margenSpan.textContent = '0%';
+            gananciaUnidadSpan.textContent = '$0.00';
+            gananciaTotalSpan.textContent = '$0.00';
+        }
+    }
+    
+    costoInput.addEventListener('input', calcularMargen);
+    precioInput.addEventListener('input', calcularMargen);
+    cantidadInput.addEventListener('input', calcularMargen);
+});
+</script>
 {% endblock %}

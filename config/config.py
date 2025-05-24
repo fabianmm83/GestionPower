@@ -18,17 +18,18 @@ class Config:
         "Short sencillo",
         "Top",
         "Playeras oversize"  
+        
     ]
 
 class DevelopmentConfig(Config):
     # Configuración para desarrollo local (usando SQLite)
     SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI', 'sqlite:///tienda.db')
-
+    
 class ProductionConfig(Config):
     # Configuración para producción (usando PostgreSQL en Render)
     SQLALCHEMY_DATABASE_URI = os.getenv(
         'SQLALCHEMY_DATABASE_URI', 
-        'postgresql://powerdb_821m_user:bpboqcKOK4PbcCmVi77rbEjdnuZbVcvX@dpg-cv6eklnnoe9s73bukq3g-a.oregon-postgres.render.com/powerdb_821m'
+        'postgresql://gestionpowerdb_user:X86wwtFNPvp1cwfIEXf16LtemOWSM55A@dpg-cv75utjtq21c73amin10-a.oregon-postgres.render.com/gestionpowerdb'
     )
                     
 

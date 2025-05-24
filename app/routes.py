@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from sqlalchemy import DateTime, func, case
+from sqlalchemy import DateTime, func, case, text
 from app import db
 from app.models import Producto, Categoria, Venta, VentaProducto, MovimientoInventario
 from collections import defaultdict
@@ -57,12 +57,110 @@ def recalcular_stock():
         producto.cantidad = stock_calculado
         db.session.commit()
 
-@routes.route('/')
-def index():
-    page = request.args.get('page', 1, type=int)  # Página actual (por defecto es 1)
-    productos = Producto.query.filter_by(activo=True).paginate(page=page, per_page=10)
 
-    return render_template('index.html', productos=productos)
+@routes.route('/')
+def root():
+    """Redirige a dashboard desde la raíz"""
+    return redirect(url_for('routes.dashboard'))
+
+
+@routes.route('/index')
+def index():
+    try:
+        # Get filter parameters
+        categoria_seleccionada = request.args.get('categoria', 'todas')
+        page = request.args.get('page', 1, type=int)
+        
+        # Base query
+        query = Producto.query.filter_by(activo=True)
+        
+        # Apply category filter
+        if categoria_seleccionada != 'todas':
+            query = query.filter_by(categoria=categoria_seleccionada)
+        
+        # Pagination
+        productos = query.order_by(Producto.nombre).paginate(page=page, per_page=10)
+        
+        # Get all categories for dropdown
+        categorias = db.session.query(Producto.categoria).distinct().all()
+        categorias = [c[0] for c in categorias if c[0]]  # Extract category names
+        
+        return render_template(
+            'index.html',
+            productos=productos,
+            categorias=categorias,
+            categoria_seleccionada=categoria_seleccionada
+        )
+        
+    except Exception as e:
+        logging.error(f"Error en index: {str(e)}", exc_info=True)
+        flash("Error al cargar el inventario", "danger")
+        return redirect(url_for('routes.dashboard'))
+
+@routes.route('/dashboard')
+def dashboard():
+    try:
+        hoy = datetime.now().date()
+        
+        # Estadísticas básicas
+        total_ventas_hoy = db.session.query(func.count(Venta.id)).filter(
+            func.date(Venta.fecha) == hoy
+        ).scalar() or 0
+        
+        monto_ventas_hoy = db.session.query(
+            func.coalesce(func.sum(Venta.total), 0)
+        ).filter(
+            func.date(Venta.fecha) == hoy
+        ).scalar() or 0
+        
+        # Productos más vendidos (últimos 30 días)
+        fecha_limite = datetime.now() - timedelta(days=30)
+        productos_mas_vendidos = db.session.query(
+            Producto,
+            func.coalesce(func.sum(VentaProducto.cantidad), 0).label('total_vendido')
+        ).join(
+            VentaProducto, Producto.id == VentaProducto.producto_id
+        ).join(
+            Venta, VentaProducto.venta_id == Venta.id
+        ).filter(
+            Venta.fecha >= fecha_limite
+        ).group_by(
+            Producto.id
+        ).order_by(
+            func.sum(VentaProducto.cantidad).desc()
+        ).limit(5).all()
+        
+        # Últimas 5 ventas
+        ultimas_ventas = Venta.query.order_by(
+            Venta.fecha.desc()
+        ).limit(5).all()
+        
+        # Estadísticas de inventario
+        total_productos = Producto.query.count()
+        productos_bajo_stock = Producto.query.filter(
+            Producto.cantidad < 10
+        ).count()
+        
+        return render_template('tienda/dashboard_tienda.html',
+                            total_ventas_hoy=total_ventas_hoy,
+                            monto_ventas_hoy=monto_ventas_hoy,
+                            productos_mas_vendidos=productos_mas_vendidos,
+                            ultimas_ventas=ultimas_ventas,
+                            total_productos=total_productos,
+                            productos_bajo_stock=productos_bajo_stock)
+        
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error en dashboard: {str(e)}", exc_info=True)
+        flash("Ocurrió un error al cargar el dashboard. Por favor intente nuevamente.", "danger")
+        return redirect(url_for('routes.index'))
+
+
+@routes.route('/tienda')
+def index_tienda():
+    return render_template('tienda/index_tienda.html')
+
+
 
 
 @routes.route('/productos')
@@ -72,34 +170,35 @@ def productos():
 
     return render_template('productos_lista.html', productos=productos_paginados)
 
+
+
 @routes.route('/producto/nuevo', methods=['GET', 'POST'])
 def nuevo_producto():
     if request.method == 'POST':
         nombre = request.form['nombre']
         descripcion = request.form['descripcion']
-        precio = float(request.form['precio'])
+        precio_venta = float(request.form['precio_venta'])
+        costo_adquisicion = float(request.form['costo_adquisicion'])
         cantidad = int(request.form['cantidad'])
-        categoria_id = request.form['categoria']  # Aquí obtenemos el ID de la categoría seleccionada
+        categoria_id = request.form['categoria']
 
-        # Obtener la instancia de la categoría usando el ID
         categoria = Categoria.query.get(categoria_id)
 
         if not categoria:
             flash("Categoría no válida.", "danger")
             return redirect(url_for('routes.nuevo_producto'))
 
-        # Crear el nuevo producto con la instancia de la categoría
         nuevo_producto = Producto(
             nombre=nombre,
             descripcion=descripcion,
-            precio=precio,
+            precio_venta=precio_venta,
+            costo_adquisicion=costo_adquisicion,
             cantidad=cantidad,
-            categoria=categoria  # Asignar la instancia de Categoria
+            categoria=categoria
         )
         db.session.add(nuevo_producto)
         db.session.commit()
 
-        # Registrar movimiento de entrada
         movimiento = MovimientoInventario(
             producto_id=nuevo_producto.id,
             tipo='entrada',
@@ -111,7 +210,7 @@ def nuevo_producto():
         flash('Producto agregado correctamente.', 'success')
         return redirect(url_for('routes.index'))
 
-    categorias = Categoria.query.all()  # Obtener todas las categorías desde la base de datos
+    categorias = Categoria.query.all()
     return render_template('nuevo_producto.html', categorias=categorias)
 
 
@@ -121,28 +220,96 @@ def editar_producto(id):
     if request.method == 'POST':
         producto.nombre = request.form['nombre']
         producto.descripcion = request.form['descripcion']
-        producto.precio = float(request.form['precio'])
+        producto.precio_venta = float(request.form['precio_venta'])
+        producto.costo_adquisicion = float(request.form['costo_adquisicion'])
         producto.cantidad = int(request.form['cantidad'])
-        categoria_id = request.form['categoria']  # Aquí obtenemos el ID de la categoría seleccionada
+        categoria_id = request.form['categoria']
 
-        # Obtener la instancia de la categoría usando el ID
         categoria = Categoria.query.get(categoria_id)
 
         if not categoria:
             flash("Categoría no válida.", "danger")
             return redirect(url_for('routes.editar_producto', id=id))
 
-        producto.categoria = categoria  # Asignar la instancia de Categoria al producto
+        producto.categoria = categoria
         db.session.commit()
 
         flash("Producto actualizado correctamente.", "success")
         return redirect(url_for('routes.index'))
 
-    categorias = Categoria.query.all()  # Obtener todas las categorías desde la base de datos
+    categorias = Categoria.query.all()
     return render_template('editar_producto.html', producto=producto, categorias=categorias)
 
 
+@routes.route('/analisis_productos')
+def analisis_productos():
+    try:
+        filtro = request.args.get('filtro', 'vendidos')
 
+        # Subquery for sales aggregation
+        ventas_subq = db.session.query(
+            VentaProducto.producto_id,
+            db.func.sum(VentaProducto.cantidad).label('total_vendido'),
+            db.func.sum(VentaProducto.cantidad * VentaProducto.precio_venta).label('ventas_totales')
+        ).group_by(VentaProducto.producto_id).subquery()
+
+        # Main query
+        query = db.session.query(
+            Producto,
+            db.func.coalesce(ventas_subq.c.total_vendido, 0).label('total_vendido'),
+            db.func.coalesce(ventas_subq.c.ventas_totales, 0).label('ventas_totales'),
+            db.func.coalesce(Producto.cantidad, 0) - db.func.coalesce(ventas_subq.c.total_vendido, 0)
+                .label('stock_restante')
+        ).outerjoin(
+            ventas_subq, ventas_subq.c.producto_id == Producto.id
+        ).join(
+            Categoria, Categoria.id == Producto.categoria_id
+        )
+
+        # Apply filter - changed from HAVING to WHERE for subquery
+        if filtro == 'vendidos':
+            query = query.filter(ventas_subq.c.total_vendido > 0)
+
+        productos_venta = query.all()
+
+        # Handle no results
+        if not productos_venta and filtro == 'vendidos':
+            flash("No hay productos vendidos.", "info")
+            return render_template('analisis.html', datos=[], grafico_productos=None, filtro=filtro)
+
+        # Generate chart
+        if productos_venta:
+            productos = [p.Producto.nombre for p in productos_venta]
+            cantidades = [p.total_vendido for p in productos_venta]
+            
+            plt.switch_backend('Agg')
+            fig, ax = plt.subplots(figsize=(10, 6))
+            ax.barh(productos, cantidades, color='green')
+            ax.set_xlabel('Cantidad Vendida')
+            ax.set_ylabel('Producto')
+            ax.set_title('Productos Más Vendidos')
+            plt.tight_layout()
+            
+            img = io.BytesIO()
+            fig.savefig(img, format='png', bbox_inches='tight')
+            img.seek(0)
+            grafico_base64 = base64.b64encode(img.getvalue()).decode('utf-8')
+            plt.close(fig)
+        else:
+            grafico_base64 = None
+
+        return render_template(
+            'analisis.html',
+            datos=productos_venta,
+            grafico_productos=grafico_base64,
+            filtro=filtro
+        )
+
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error en analisis_productos: {str(e)}", exc_info=True)
+        flash("Error al generar el análisis", "danger")
+        return redirect(url_for('routes.index'))
 
 
 
@@ -214,21 +381,16 @@ def nueva_venta():
         return redirect(url_for('routes.nueva_venta'))
 
 
-
-
-
-
 @routes.route('/ventas', methods=['GET'])
 def listar_ventas():
-    ventas = Venta.query.all()
+    ventas = Venta.query.options(joinedload(Venta.productos).joinedload(VentaProducto.producto)).all()
 
     mayor_venta = max([venta.total for venta in ventas], default=0)
-
     pago_promedio = sum([venta.total for venta in ventas]) / len(ventas) if ventas else 0
 
     ventas_por_mes = defaultdict(lambda: {"total_ventas": 0, "total_recaudado": 0})
     for venta in ventas:
-        mes = venta.fecha.strftime("%B %Y")  # Formato: "Mes Año"
+        mes = venta.fecha.strftime("%B %Y")
         ventas_por_mes[mes]["total_ventas"] += 1
         ventas_por_mes[mes]["total_recaudado"] += venta.total
 
@@ -240,23 +402,8 @@ def listar_ventas():
         mayor_venta=mayor_venta,
         pago_promedio=pago_promedio,
         ventas_por_mes=ventas_por_mes,
-        grafico_ventas=grafico_ventas  # Pasamos el gráfico al template
+        grafico_ventas=grafico_ventas
     )
-
-
-
-
-
-
-
-@routes.route('/movimientos')
-def listar_movimientos():
-    movimientos = MovimientoInventario.query.order_by(MovimientoInventario.fecha.desc()).all()
-    return render_template('movimientos_lista.html', movimientos=movimientos)
-
-
-
-
 
 
 
@@ -289,66 +436,13 @@ def eliminar_venta(id):
 
 
 
-@routes.route('/analisis_productos')
-def analisis_productos():
-    # Obtener el parámetro de filtro de la URL (por defecto 'vendidos')
-    filtro = request.args.get('filtro', 'vendidos')  # Cambiado a 'vendidos' por defecto
-
-    # Consulta base para obtener los productos vendidos y las cantidades
-    query = db.session.query(
-        Producto,
-        db.func.coalesce(db.func.sum(VentaProducto.cantidad), 0).label('total_vendido'),
-        db.func.coalesce(db.func.sum(VentaProducto.cantidad * Producto.precio), 0).label('ventas_totales'),
-        db.case(
-            (Producto.cantidad - db.func.coalesce(db.func.sum(VentaProducto.cantidad), 0) >= 0,
-             Producto.cantidad - db.func.coalesce(db.func.sum(VentaProducto.cantidad), 0)),
-            else_=0
-        ).label('stock_restante')
-    ).join(VentaProducto, VentaProducto.producto_id == Producto.id, isouter=True) \
-     .join(Categoria, Categoria.id == Producto.categoria_id) \
-     .group_by(Producto.id, Categoria.id)  # Agrupamos por Producto y Categoria
-
-    # Aplicar el filtro según el parámetro
-    if filtro == 'vendidos':
-        query = query.having(db.func.coalesce(db.func.sum(VentaProducto.cantidad), 0) > 0)
-
-    # Ejecutar la consulta
-    productos_venta = query.all()
-
-    # Si no hay productos vendidos y el filtro es 'vendidos', mostrar un mensaje
-    if not productos_venta and filtro == 'vendidos':
-        flash("No hay productos vendidos.", "warning")
-        return render_template('analisis.html', datos=[], grafico_productos=None, filtro=filtro)
-
-    # Generar gráfico de productos más vendidos
-    productos = [producto[0].nombre for producto in productos_venta]  # Accede al producto (0) en la tupla
-    cantidad_vendida = [producto.total_vendido for producto in productos_venta]
-
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.barh(productos, cantidad_vendida, color='green')
-    ax.set_xlabel('Cantidad Vendida')
-    ax.set_ylabel('Producto')
-    ax.set_title('Productos Más Vendidos')
-
-    # Convertir a imagen en base64
-    img = io.BytesIO()
-    canvas = FigureCanvas(fig)
-    canvas.print_png(img)
-    img.seek(0)
-    grafico_productos_base64 = base64.b64encode(img.getvalue()).decode('utf8')
-
-    # Renderizar la plantilla con los datos y el filtro
-    return render_template('analisis.html', 
-                           datos=productos_venta, 
-                           grafico_productos=grafico_productos_base64,
-                           filtro=filtro)
 
 
+@routes.route('/movimientos')
+def listar_movimientos():
+    movimientos = MovimientoInventario.query.order_by(MovimientoInventario.fecha.desc()).all()
+    return render_template('movimientos_lista.html', movimientos=movimientos)
 
-
-
-    
-    
     
     
     

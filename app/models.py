@@ -15,8 +15,13 @@ class Producto(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(100), nullable=False)
     descripcion = db.Column(db.Text, nullable=True)
-    precio = db.Column(db.Float, nullable=False)
+    precio_venta = db.Column(db.Float, nullable=False)  # Cambiado de 'precio' a 'precio_venta'
+    costo_adquisicion = db.Column(db.Float, nullable=False)  # Nuevo campo
     cantidad = db.Column(db.Integer, default=0)
+    categoria_id = db.Column(db.Integer, db.ForeignKey('categoria.id'), nullable=False)
+    activo = db.Column(db.Boolean, default=True)
+    fecha_registro = db.Column(db.DateTime, default=datetime.utcnow)
+    cantidad_vendida = db.Column(db.Integer, default=0)
     
     # Aquí cambias 'categoria' por una clave foránea
     categoria_id = db.Column(db.Integer, db.ForeignKey('categoria.id'), nullable=False)  # Clave foránea a 'Categoria'
@@ -91,7 +96,7 @@ class VentaProducto(db.Model):
     venta_id = db.Column(db.Integer, db.ForeignKey('venta.id', ondelete="CASCADE"), primary_key=True)
     producto_id = db.Column(db.Integer, db.ForeignKey('producto.id', ondelete="CASCADE"), primary_key=True)
     cantidad = db.Column(db.Integer, nullable=False)
-    precio = db.Column(db.Float, nullable=False)
+    precio_venta = db.Column(db.Float, nullable=False)
 
     # Relaciones inversas
     venta = db.relationship('Venta', back_populates='productos')
